@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather in Virar West</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- CSS for Adwaita Dark Theme --- */
+        :root {
+            /* Adwaita Dark Color Palette */
+            --adw-dark-bg: #241f31;
+            --adw-dark-card: #3d3846;
+            --adw-text-primary: #f6f5f4;
+            --adw-text-secondary: #9a9996;
+            --adw-blue: #3584e4;
+        }
+
+        body {
+            background-color: var(--adw-dark-bg);
+            color: var(--adw-text-primary);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: var(--adw-dark-card);
+            padding: 20px;
+            border-radius: 12px; /* A bit more rounded for Adwaita feel */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        header h1 {
+            color: var(--adw-blue);
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        #current-date {
+            font-style: italic;
+            color: var(--adw-text-secondary);
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        #location {
+            font-size: 1.5em;
+            color: var(--adw-text-secondary);
+        }
+
+        #weather-description {
+            font-size: 1.8em;
+            font-weight: 500;
+            color: var(--adw-text-primary);
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+
+        #temperature {
+            font-size: 4em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .weather-info p {
+            margin: 5px 0;
+            font-size: 1.2em;
+        }
+
+        .loading-text {
+            font-style: italic;
+            color: var(--adw-text-secondary);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Weather in Virar West</h1>
+            <p id="current-date"></p>
+        </header>
+
+        <main>
+            <div id="weather-display">
+                <h2 id="location">Virar (W), Maharashtra</h2>
+                <p id="weather-description" class="loading-text">Loading...</p>
+                <div class="weather-info">
+                    <p>Temperature: <span id="temperature" class="loading-text">Loading...</span> °C</p>
+                    <p>Humidity: <span id="humidity" class="loading-text">Loading...</span> %</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Coordinates for Virar West, Maharashtra
+        const lat = 19.4522;
+        const lon = 72.7937;
+
+        // Using Open-Meteo, which does not require a key
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,relativehumidity_2m,weathercode`;
+
+        // WMO weather interpretation codes
+        const weatherCodes = {
+            0: 'Clear sky',
+            1: 'Mainly clear',
+            2: 'Partly cloudy',
+            3: 'Overcast',
+            45: 'Fog',
+            48: 'Depositing rime fog',
+            51: 'Light drizzle',
+            53: 'Moderate drizzle',
+            55: 'Dense drizzle',
+            56: 'Light freezing drizzle',
+            57: 'Dense freezing drizzle',
+            61: 'Slight rain',
+            63: 'Moderate rain',
+            65: 'Heavy rain',
+            66: 'Light freezing rain',
+            67: 'Heavy freezing rain',
+            71: 'Slight snow fall',
+            73: 'Moderate snow fall',
+            75: 'Heavy snow fall',
+            77: 'Snow grains',
+            80: 'Slight rain showers',
+            81: 'Moderate rain showers',
+            82: 'Violent rain showers',
+            85: 'Slight snow showers',
+            86: 'Heavy snow showers',
+            95: 'Thunderstorm',
+            96: 'Thunderstorm with slight hail',
+            99: 'Thunderstorm with heavy hail'
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+
+            function updateDateTime() {
+                const now = new Date();
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
+                const formattedDate = now.toLocaleDateString('en-IN', options);
+                document.getElementById('current-date').textContent = formattedDate;
+            }
+
+            async function fetchWeatherData() {
+                try {
+                    const response = await fetch(weatherUrl);
+                    if (!response.ok) {
+                        throw new Error(`Weather API error: ${response.statusText}`);
+                    }
+                    const data = await response.json();
+
+                    // Get the weather description from the WMO code
+                    const code = data.current_weather.weathercode;
+                    const description = weatherCodes[code] || 'Condition unknown';
+
+                    document.getElementById('weather-description').textContent = description;
+                    document.getElementById('temperature').textContent = data.current_weather.temperature;
+
+                    // Open-Meteo returns hourly data, so we'll grab the first hourly value
+                    const humidity = data.hourly.relativehumidity_2m[0];
+                    document.getElementById('humidity').textContent = humidity;
+
+                } catch (error) {
+                    console.error('Could not fetch weather data:', error);
+                    document.getElementById('weather-description').textContent = 'Failed to load';
+                    document.getElementById('temperature').textContent = 'Failed to load';
+                    document.getElementById('humidity').textContent = 'Failed to load';
+                }
+            }
+
+            // Initial calls
+            updateDateTime();
+            fetchWeatherData();
+
+            // Refresh weather data every 5 minutes
+            setInterval(fetchWeatherData, 300000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GTK 4 Stopwatch</title>
+    <!-- Use the Inter font, a clean modern sans-serif typeface -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles to refine the GTK 4 look and feel */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Define a subtle dark gradient for the background */
+        .gtk-bg {
+            background-color: #241f31;
+            background-image: radial-gradient(at 0% 0%, #3d3846 0%, #241f31 100%);
+        }
+
+        /* Apply a slight glow on focus for accessibility and a modern look */
+        .focus-glow:focus {
+            outline: 2px solid #33d17a;
+            outline-offset: 2px;
+        }
+
+        /* Keyframes for a subtle button press animation */
+        @keyframes button-press {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.98); }
+            100% { transform: scale(1); }
+        }
+
+        /* Apply the animation on button click */
+        .btn:active {
+            animation: button-press 0.2s ease-in-out;
+        }
+
+        /* Styling for the time display text */
+        .time-display {
+            font-variant-numeric: tabular-nums; /* Ensures numbers have consistent width */
+        }
+    </style>
+</head>
+<body class="gtk-bg min-h-screen flex items-center justify-center p-4">
+    <!-- Main container for the stopwatch -->
+    <div class="bg-[#3d3846] p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full border border-gray-700">
+        <!-- Header -->
+        <h1 class="text-3xl sm:text-4xl font-bold text-white mb-6">Stopwatch</h1>
+
+        <!-- Time display section -->
+        <div class="flex items-baseline mb-8">
+            <span id="display" class="time-display text-5xl sm:text-6xl font-extralight text-[#8ff0a4] tracking-wide">00:00:00</span>
+        </div>
+
+        <!-- Message box for errors or notices -->
+        <div id="message-box" class="hidden text-center p-4 bg-red-800 text-red-200 rounded-lg shadow-inner mb-4">
+            <p id="message-text"></p>
+        </div>
+
+        <!-- Button container -->
+        <div class="flex space-x-4 w-full justify-center">
+            <!-- Reset Button -->
+            <button id="reset-btn" class="btn bg-[#5e5c64] text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:bg-[#77767b] focus-glow transition-colors duration-200">
+                Reset
+            </button>
+
+            <!-- Start/Pause Toggle Button -->
+            <button id="toggle-btn" class="btn bg-[#33d17a] text-gray-900 font-semibold py-3 px-6 rounded-xl shadow-lg hover:bg-[#57e389] focus-glow transition-colors duration-200">
+                Start
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Get references to all the HTML elements
+        const display = document.getElementById('display');
+        const resetBtn = document.getElementById('reset-btn');
+        const toggleBtn = document.getElementById('toggle-btn');
+        const messageBox = document.getElementById('message-box');
+        const messageText = document.getElementById('message-text');
+
+        // Variables for the stopwatch logic
+        let startTime = 0;
+        let elapsedTime = 0;
+        let timerInterval;
+        let isRunning = false;
+
+        // Variable to hold the wake lock object
+        let wakeLock = null;
+
+        // Function to show a custom message
+        function showMessage(message, type = 'error') {
+            messageText.textContent = message;
+            messageBox.classList.remove('hidden');
+            if (type === 'error') {
+                messageBox.classList.add('bg-red-800', 'text-red-200');
+                messageBox.classList.remove('bg-green-800', 'text-green-200');
+            } else {
+                messageBox.classList.add('bg-green-800', 'text-green-200');
+                messageBox.classList.remove('bg-red-800', 'text-red-200');
+            }
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 5000); // Hide the message after 5 seconds
+        }
+
+        // Function to request a wake lock
+        async function requestWakeLock() {
+            try {
+                // Request a screen wake lock
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake lock acquired.');
+
+                // Listen for when the wake lock is released externally
+                wakeLock.addEventListener('release', () => {
+                    console.log('Wake lock released by the system or another tab.');
+                });
+            } catch (err) {
+                // The wake lock request failed. This can happen if the page is not in a secure context,
+                // the user has a low battery, or the browser/OS does not support it.
+                console.error(`${err.name}: ${err.message}`);
+                showMessage(`Wake Lock Failed: ${err.message}. Your screen may still dim.`, 'error');
+            }
+        }
+
+        // Function to release the wake lock
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release();
+                wakeLock = null;
+                console.log('Wake lock released.');
+            }
+        }
+
+        // Function to format the time as hh:mm:ss
+        function formatTime(ms) {
+            const hours = Math.floor(ms / 3600000);
+            const minutes = Math.floor((ms % 3600000) / 60000);
+            const seconds = Math.floor((ms % 60000) / 1000);
+
+            // Pad with leading zeros
+            const pad = (num, length) => num.toString().padStart(length, '0');
+
+            return `${pad(hours, 2)}:${pad(minutes, 2)}:${pad(seconds, 2)}`;
+        }
+
+        // --- Event Handlers ---
+
+        function handleStart() {
+            if (!isRunning) {
+                // Request a wake lock when the stopwatch starts
+                requestWakeLock();
+                startTime = Date.now() - elapsedTime;
+                timerInterval = setInterval(() => {
+                    elapsedTime = Date.now() - startTime;
+                    display.textContent = formatTime(elapsedTime);
+                }, 1000); // Update every second
+                isRunning = true;
+                toggleBtn.textContent = 'Pause';
+                toggleBtn.classList.remove('bg-[#33d17a]', 'hover:bg-[#57e389]');
+                toggleBtn.classList.add('bg-[#f5c211]', 'hover:bg-[#f6d32d]');
+                resetBtn.disabled = false;
+            }
+        }
+
+        function handlePause() {
+            if (isRunning) {
+                clearInterval(timerInterval); // Stop the timer
+                isRunning = false;
+                // Release the wake lock when the stopwatch is paused
+                releaseWakeLock();
+                toggleBtn.textContent = 'Start';
+                toggleBtn.classList.remove('bg-[#f5c211]', 'hover:bg-[#f6d32d]');
+                toggleBtn.classList.add('bg-[#33d17a]', 'hover:bg-[#57e389]');
+            }
+        }
+
+        function handleReset() {
+            clearInterval(timerInterval); // Stop the timer
+            isRunning = false;
+            elapsedTime = 0; // Reset the elapsed time
+            display.textContent = '00:00:00'; // Reset the display text
+            // Release the wake lock when the stopwatch is reset
+            releaseWakeLock();
+            toggleBtn.textContent = 'Start';
+            toggleBtn.classList.remove('bg-[#f5c211]', 'hover:bg-[#f6d32d]');
+            toggleBtn.classList.add('bg-[#33d17a]', 'hover:bg-[#57e389]');
+            resetBtn.disabled = true;
+        }
+
+        // --- Button Event Listeners ---
+        toggleBtn.addEventListener('click', () => {
+            if (isRunning) {
+                handlePause();
+            } else {
+                handleStart();
+            }
+        });
+        resetBtn.addEventListener('click', handleReset);
+
+        // --- Keyboard Shortcuts Event Listener ---
+        document.addEventListener('keydown', (event) => {
+            // Use event.preventDefault() at the start to ensure the browser's default
+            // behavior for these keys (like form submission) is blocked.
+            if (event.code === 'Enter' || event.code === 'Escape') {
+                event.preventDefault();
+            }
+
+            // Check which key was pressed and call the corresponding handler
+            if (event.code === 'Enter') {
+                // Toggle between start and pause
+                if (isRunning) {
+                    handlePause();
+                } else {
+                    handleStart();
+                }
+            } else if (event.code === 'Escape') {
+                handleReset();
+            }
+        });
+
+        // Initial button state on page load
+        resetBtn.disabled = true;
+
+    </script>
+</body>
+</html>

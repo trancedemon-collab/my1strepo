@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Work Timer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-gray-100 antialiased">
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <!-- Main container for the three-column layout -->
+        <div class="w-full max-w-7xl flex flex-col md:grid md:grid-cols-3 md:gap-8 bg-gray-800 rounded-xl shadow-lg p-6 md:p-8">
+
+            <!-- Left column for timer controls and break log -->
+            <div class="flex flex-col mb-8 md:mb-0">
+                <h1 class="text-3xl font-bold text-center text-gray-100 mb-6">Agent Work Timer</h1>
+
+                <!-- Target Hours Input -->
+                <div id="setup-section" class="mb-6">
+                    <label for="target-hours" class="block text-sm font-medium text-gray-300 mb-2">
+                        Total Hours Goal for Today (use <span class="font-bold">↑↓</span> keys to adjust)
+                    </label>
+                    <input type="number" id="target-hours" value="8" step="0.5" class="w-full px-4 py-2 bg-gray-700 text-gray-100 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-150 ease-in-out" />
+                </div>
+
+                <!-- Timer Display -->
+                <div id="timer-display" class="mb-6 text-center">
+                    <div class="text-5xl font-bold text-blue-400 mb-2" id="time-display">00:00:00</div>
+                    <div class="text-xl font-medium text-gray-400" id="status-display">Ready to Start</div>
+                </div>
+
+                <!-- Control Buttons -->
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Dynamic Shift Toggle Button -->
+                    <button id="shift-toggle-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-150 ease-in-out">
+                        Start Shift (<span class="font-bold">Enter</span>)
+                    </button>
+                    <!-- Dynamic Break Toggle Button -->
+                    <button id="break-toggle-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-150 ease-in-out" disabled>
+                        Start Break (<span class="font-bold">Space</span>)
+                    </button>
+                </div>
+
+                <!-- Break Log -->
+                <div class="mt-8">
+                    <h2 class="text-xl font-semibold text-gray-100 mb-4">Break Log</h2>
+                    <div id="break-log" class="space-y-3">
+                        <!-- Break events will be added here -->
+                        <p class="text-sm text-gray-500" id="no-breaks-msg">No breaks logged yet.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle column for reports -->
+            <div id="report-column" class="flex flex-col mb-8 md:mb-0">
+                <!-- Report Section (hidden by default) -->
+                <div id="report-section" class="hidden">
+                    <h2 class="text-xl font-semibold text-gray-100 mb-4">End of Shift Report</h2>
+                    <div class="bg-gray-700 p-4 rounded-lg shadow-inner">
+                        <p id="report-shift-start" class="text-gray-300"></p>
+                        <p id="report-shift-end" class="text-gray-300"></p>
+                        <p id="report-total-shift" class="text-gray-300 font-semibold mt-4"></p>
+                        <p id="report-total-break" class="text-gray-300"></p>
+                        <p id="report-total-work" class="text-gray-300"></p>
+                        <p id="report-goal" class="text-gray-300 mt-4"></p>
+                        <p id="report-overtime-deficit" class="text-gray-300 font-bold"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right column for history -->
+            <div id="history-column" class="flex flex-col">
+                <!-- History Section (hidden by default) -->
+                <div id="history-section" class="hidden">
+                    <h2 class="text-xl font-semibold text-gray-100 mb-4">Shift History</h2>
+                    <div id="history-log" class="space-y-4">
+                        <!-- History records will be loaded here from local storage -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Modal for user input -->
+            <div id="break-modal" class="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center hidden">
+                <div class="bg-gray-800 rounded-xl p-8 shadow-2xl w-full max-w-sm">
+                    <h3 class="text-lg font-bold text-gray-100 mb-4">Enter Break Type</h3>
+                    <input type="text" id="break-type-input" class="w-full px-4 py-2 bg-gray-700 text-gray-100 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4" placeholder="e.g., Lunch, Coffee Break" />
+                    <button id="submit-break-type" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-150 ease-in-out">
+                        Submit
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <script>
+        // DOM element references
+        const shiftToggleBtn = document.getElementById('shift-toggle-btn');
+        const breakToggleBtn = document.getElementById('break-toggle-btn');
+        const timeDisplay = document.getElementById('time-display');
+        const statusDisplay = document.getElementById('status-display');
+        const targetHoursInput = document.getElementById('target-hours');
+        const breakLogDiv = document.getElementById('break-log');
+        const reportSection = document.getElementById('report-section');
+        const noBreaksMsg = document.getElementById('no-breaks-msg');
+        const breakModal = document.getElementById('break-modal');
+        const breakTypeInput = document.getElementById('break-type-input');
+        const submitBreakTypeBtn = document.getElementById('submit-break-type');
+        const historySection = document.getElementById('history-section');
+        const historyLogDiv = document.getElementById('history-log');
+
+        // State variables
+        let shiftStartTime = null;
+        let breakStartTime = null;
+        let totalBreakDuration = 0; // Stored in milliseconds
+        let breakLog = [];
+        let shiftInterval = null;
+        let isShiftActive = false;
+        let isOnBreak = false;
+
+        // Helper function to format milliseconds into a HH:MM:SS string
+        function formatTime(milliseconds) {
+            const totalSeconds = Math.floor(milliseconds / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            return [hours, minutes, seconds].map(v => String(v).padStart(2, '0')).join(':');
+        }
+
+        // Helper function to update the main timer
+        function updateTimer() {
+            if (isShiftActive) {
+                const now = Date.now();
+                const totalShiftDuration = now - shiftStartTime;
+                const currentWorkTime = totalShiftDuration - totalBreakDuration;
+                timeDisplay.textContent = formatTime(currentWorkTime);
+            }
+        }
+
+        // --- Local Storage Functions ---
+        function saveRecordToLocalStorage(record) {
+            const records = JSON.parse(localStorage.getItem('agentTimerHistory')) || [];
+            records.unshift(record); // Add to the beginning
+            if (records.length > 3) {
+                records.pop(); // Keep only the last 3 records
+            }
+            localStorage.setItem('agentTimerHistory', JSON.stringify(records));
+        }
+
+        function loadHistoryFromLocalStorage() {
+            const records = JSON.parse(localStorage.getItem('agentTimerHistory')) || [];
+            if (records.length > 0) {
+                historySection.classList.remove('hidden');
+                historyLogDiv.innerHTML = ''; // Clear previous history
+                records.forEach(record => {
+                    const historyEntry = document.createElement('div');
+                    historyEntry.classList.add('p-4', 'bg-gray-700', 'rounded-lg', 'shadow-sm', 'space-y-2');
+
+                    const shiftStart = new Date(record.shiftStart).toLocaleString();
+                    const shiftEnd = new Date(record.shiftEnd).toLocaleString();
+                    const totalWorkTime = formatTime(record.totalWorkDuration);
+                    const totalBreakTime = formatTime(record.totalBreakDuration);
+                    const goal = record.totalHoursGoal;
+
+                    let statusText = '';
+                    if (record.deficitOrOvertime > 0) {
+                        statusText = `<span class="text-green-400 font-semibold">Overtime: ${formatTime(record.deficitOrOvertime)}</span>`;
+                    } else if (record.deficitOrOvertime < 0) {
+                        statusText = `<span class="text-red-400 font-semibold">Deficit: ${formatTime(Math.abs(record.deficitOrOvertime))}</span>`;
+                    } else {
+                        statusText = `<span class="text-gray-400 font-semibold">Goal Achieved!</span>`;
+                    }
+
+                    historyEntry.innerHTML = `
+                        <h3 class="text-lg font-bold text-gray-200">Shift from ${shiftStart.split(', ')[0]}</h3>
+                        <p class="text-sm text-gray-300">Started: ${shiftStart}</p>
+                        <p class="text-sm text-gray-300">Ended:   ${shiftEnd}</p>
+                        <p class="text-sm text-gray-300">Work Time: ${totalWorkTime}</p>
+                        <p class="text-sm text-gray-300">Break Time: ${totalBreakTime}</p>
+                        <p class="text-sm text-gray-300">Goal: ${goal} hours</p>
+                        <p class="text-sm">${statusText}</p>
+                        <details class="text-sm text-gray-400 cursor-pointer">
+                            <summary class="font-semibold">View Break Details</summary>
+                            <ul class="list-disc list-inside mt-2 ml-4">
+                                ${record.breakLog.map(b =>
+                                    `<li>${b.type}: ${new Date(b.start).toLocaleTimeString()} to ${new Date(b.end).toLocaleTimeString()} (${formatTime(b.duration)})</li>`
+                                ).join('')}
+                            </ul>
+                        </details>
+                    `;
+                    historyLogDiv.appendChild(historyEntry);
+                });
+            } else {
+                historySection.classList.add('hidden');
+            }
+        }
+
+        // --- Event Handlers for dynamic buttons ---
+        shiftToggleBtn.addEventListener('click', () => {
+            if (!isShiftActive) {
+                // Start Shift
+                shiftStartTime = Date.now();
+                isShiftActive = true;
+                statusDisplay.textContent = 'Shift Active';
+                shiftToggleBtn.textContent = 'End Shift';
+                breakToggleBtn.disabled = false;
+                targetHoursInput.disabled = true;
+                shiftInterval = setInterval(updateTimer, 1000);
+            } else {
+                // End Shift
+                // Stop all timers
+                clearInterval(shiftInterval);
+                isShiftActive = false;
+
+                const shiftEndTime = Date.now();
+                // If the user ended the shift while on break, add the remaining break duration
+                if (isOnBreak) {
+                    const finalBreakDuration = shiftEndTime - breakStartTime;
+                    totalBreakDuration += finalBreakDuration;
+
+                    const lastLogEntry = breakLogDiv.lastChild;
+                    if (lastLogEntry) {
+                        const breakEvent = breakLog[breakLog.length - 1];
+                        breakEvent.end = shiftEndTime;
+                        breakEvent.duration = finalBreakDuration;
+
+                        const endTimeFormatted = new Date(shiftEndTime).toLocaleTimeString();
+                        const durationFormatted = formatTime(finalBreakDuration);
+
+                        lastLogEntry.innerHTML = `<p class="text-sm font-semibold text-yellow-300">Break (${breakEvent.type}):</p>
+                                                  <p class="text-xs text-yellow-400">From ${new Date(breakEvent.start).toLocaleTimeString()} to ${endTimeFormatted}</p>
+                                                  <p class="text-xs text-yellow-400">Duration: ${durationFormatted}</p>`;
+                    }
+                }
+
+                // Calculate final report values
+                const totalShiftDuration = shiftEndTime - shiftStartTime;
+                const totalWorkDuration = totalShiftDuration - totalBreakDuration;
+                const totalHoursGoal = parseFloat(targetHoursInput.value) || 0;
+                const goalMilliseconds = totalHoursGoal * 3600 * 1000;
+                const deficitOrOvertime = totalWorkDuration - goalMilliseconds;
+
+                // Store the report
+                const finalReport = {
+                    shiftStart: shiftStartTime,
+                    shiftEnd: shiftEndTime,
+                    totalShiftDuration: totalShiftDuration,
+                    totalBreakDuration: totalBreakDuration,
+                    totalWorkDuration: totalWorkDuration,
+                    totalHoursGoal: totalHoursGoal,
+                    deficitOrOvertime: deficitOrOvertime,
+                    breakLog: breakLog
+                };
+                saveRecordToLocalStorage(finalReport);
+
+                // Update report section
+                document.getElementById('report-shift-start').textContent = `Shift Started: ${new Date(shiftStartTime).toLocaleString()}`;
+                document.getElementById('report-shift-end').textContent = `Shift Ended:   ${new Date(shiftEndTime).toLocaleString()}`;
+                document.getElementById('report-total-shift').textContent = `Total Shift Duration: ${formatTime(totalShiftDuration)}`;
+                document.getElementById('report-total-break').textContent = `Total Break Time:   ${formatTime(totalBreakDuration)}`;
+                document.getElementById('report-total-work').textContent = `Total Work Time:    ${formatTime(totalWorkDuration)}`;
+                document.getElementById('report-goal').textContent = `Target Work Hours:  ${totalHoursGoal} hours`;
+
+                const overtimeDeficitElement = document.getElementById('report-overtime-deficit');
+                if (deficitOrOvertime > 0) {
+                    overtimeDeficitElement.textContent = `Overtime:           ${formatTime(deficitOrOvertime)}`;
+                    overtimeDeficitElement.classList.add('text-green-400');
+                    overtimeDeficitElement.classList.remove('text-red-400');
+                } else if (deficitOrOvertime < 0) {
+                    overtimeDeficitElement.textContent = `Deficit:            ${formatTime(Math.abs(deficitOrOvertime))}`;
+                    overtimeDeficitElement.classList.add('text-red-400');
+                    overtimeDeficitElement.classList.remove('text-green-400');
+                } else {
+                    overtimeDeficitElement.textContent = `Goal Achieved!      Exactly ${totalHoursGoal} hours.`;
+                    overtimeDeficitElement.classList.remove('text-green-400', 'text-red-400');
+                }
+
+                // Show the report section and reset UI
+                reportSection.classList.remove('hidden');
+                shiftToggleBtn.textContent = 'Start Shift';
+                shiftToggleBtn.disabled = true; // This will be handled by a page reload, so let's keep it consistent
+                breakToggleBtn.disabled = true;
+
+                // Reload history to show the new record
+                loadHistoryFromLocalStorage();
+            }
+        });
+
+        breakToggleBtn.addEventListener('click', () => {
+            if (!isShiftActive) return;
+
+            if (!isOnBreak) {
+                // Start Break
+                clearInterval(shiftInterval);
+                isOnBreak = true;
+                breakStartTime = Date.now();
+                statusDisplay.textContent = 'On Break';
+
+                // Update button text and class
+                breakToggleBtn.textContent = 'Resume Shift';
+                breakToggleBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+                breakToggleBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+
+                // Disable shift button and show the break modal
+                shiftToggleBtn.disabled = true;
+                breakModal.classList.remove('hidden');
+                breakTypeInput.focus();
+
+            } else {
+                // Resume Shift
+                const breakEndTime = Date.now();
+                const currentBreakDuration = breakEndTime - breakStartTime;
+                totalBreakDuration += currentBreakDuration;
+                isOnBreak = false;
+                statusDisplay.textContent = 'Shift Active';
+
+                // Update the last break log entry with end time and duration
+                const lastLogEntry = breakLogDiv.lastChild;
+                if (lastLogEntry) {
+                    const breakEvent = breakLog[breakLog.length - 1];
+                    breakEvent.end = breakEndTime;
+                    breakEvent.duration = currentBreakDuration;
+
+                    const endTimeFormatted = new Date(breakEndTime).toLocaleTimeString();
+                    const durationFormatted = formatTime(currentBreakDuration);
+
+                    lastLogEntry.innerHTML = `<p class="text-sm font-semibold text-yellow-300">Break (${breakEvent.type}):</p>
+                                              <p class="text-xs text-yellow-400">From ${new Date(breakEvent.start).toLocaleTimeString()} to ${endTimeFormatted}</p>
+                                              <p class="text-xs text-yellow-400">Duration: ${durationFormatted}</p>`;
+                }
+
+                // Update button text and class
+                breakToggleBtn.textContent = 'Start Break';
+                breakToggleBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
+                breakToggleBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+
+                // Resume the timer and re-enable shift button
+                shiftInterval = setInterval(updateTimer, 1000);
+                shiftToggleBtn.disabled = false;
+            }
+        });
+
+        // Listen for Enter key on the modal input field
+        breakTypeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitBreakTypeBtn.click();
+            }
+        });
+
+        submitBreakTypeBtn.addEventListener('click', () => {
+            const breakType = breakTypeInput.value.trim() || 'Unspecified';
+
+            // Log the break event
+            const breakEvent = {
+                start: breakStartTime,
+                type: breakType,
+                end: null,
+                duration: 0
+            };
+            breakLog.push(breakEvent);
+
+            // Hide and clear the modal
+            breakModal.classList.add('hidden');
+            breakTypeInput.value = '';
+
+            // Add a temporary log entry
+            if (noBreaksMsg) noBreaksMsg.style.display = 'none';
+            const logEntry = document.createElement('div');
+            logEntry.classList.add('p-3', 'bg-yellow-900', 'border', 'border-yellow-800', 'rounded-lg');
+            const startTimeFormatted = new Date(breakStartTime).toLocaleTimeString();
+            logEntry.innerHTML = `<p class="text-sm font-semibold text-yellow-300">Break Started (${breakType}):</p>
+                                  <p class="text-xs text-yellow-400">Started at ${startTimeFormatted}</p>`;
+            breakLogDiv.appendChild(logEntry);
+        });
+
+        // --- Keyboard Shortcuts ---
+        document.addEventListener('keydown', (e) => {
+            // Check if the break modal is open or if user is in a text input field
+            if (!breakModal.classList.contains('hidden') || document.activeElement.tagName === 'INPUT') {
+                return;
+            }
+
+            // Use e.key for modern browsers
+            switch (e.key) {
+                case 'Enter':
+                    e.preventDefault();
+                    if (!isShiftActive) {
+                        shiftToggleBtn.click();
+                    } else {
+                        // The user wanted the End Shift hotkey to also be 'Enter'
+                        // so we simulate a click on the End Shift button here.
+                        shiftToggleBtn.click();
+                    }
+                    break;
+                case ' ': // Spacebar
+                    e.preventDefault();
+                    if (isShiftActive) {
+                        breakToggleBtn.click();
+                    }
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    targetHoursInput.stepUp();
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    targetHoursInput.stepDown();
+                    break;
+            }
+        });
+
+        // Load history on page load
+        window.addEventListener('load', loadHistoryFromLocalStorage);
+    </script>
+</body>
+</html>

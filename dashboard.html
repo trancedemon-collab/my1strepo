@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #232629; /* Dark background */
+            overflow: hidden;
+        }
+
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            padding: 1rem;
+        }
+
+        .iframe-wrapper {
+            position: absolute;
+            background-color: #3a3e44; /* Slightly lighter dark background for the wrapper */
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2); /* Darker, more prominent shadow */
+            overflow: hidden;
+            border: 1px solid #4d515a;
+        }
+
+        .iframe-header {
+            cursor: grab;
+            padding: 0.5rem 1rem;
+            background-color: #30343a; /* Dark header background */
+            border-bottom: 1px solid #4d515a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .iframe-header:active {
+            cursor: grabbing;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background-color: rgba(60, 60, 60, 0.7); /* Darker, semi-transparent handle */
+            z-index: 10;
+        }
+
+        .resize-handle.top-left {
+            top: 0;
+            left: 0;
+            cursor: nwse-resize;
+        }
+
+        .resize-handle.top-right {
+            top: 0;
+            right: 0;
+            cursor: nesw-resize;
+        }
+
+        .resize-handle.bottom-left {
+            bottom: 0;
+            left: 0;
+            cursor: nesw-resize;
+        }
+
+        .resize-handle.bottom-right {
+            bottom: 0;
+            right: 0;
+            cursor: nwse-resize;
+        }
+
+        .content-iframe {
+            width: 100%;
+            height: calc(100% - 2.5rem);
+            border: none;
+        }
+
+    </style>
+</head>
+<body class="bg-[#232629] flex items-center justify-center p-4">
+
+    <!-- Main Container for Draggable Elements -->
+    <div id="dashboard-container" class="container">
+
+        <!-- Draggable and Resizable Iframe 1 -->
+        <div id="iframe1-wrapper" class="iframe-wrapper w-[400px] h-[300px] top-[50px] left-[50px]">
+            <div class="iframe-header">
+                <span class="text-sm font-semibold text-gray-200">Stopwatch</span>
+            </div>
+            <iframe id="iframe1" class="content-iframe" src="stopwatch.html"></iframe>
+            <div class="resize-handle bottom-right"></div>
+            <div class="resize-handle bottom-left"></div>
+            <div class="resize-handle top-right"></div>
+            <div class="resize-handle top-left"></div>
+        </div>
+
+        <!-- Draggable and Resizable Iframe 2 -->
+        <div id="iframe2-wrapper" class="iframe-wrapper w-[350px] h-[450px] top-[100px] left-[500px]">
+            <div class="iframe-header">
+                <span class="text-sm font-semibold text-gray-200">Alarm</span>
+            </div>
+            <iframe id="iframe2" class="content-iframe" src="alarm.html"></iframe>
+            <div class="resize-handle bottom-right"></div>
+            <div class="resize-handle bottom-left"></div>
+            <div class="resize-handle top-right"></div>
+            <div class="resize-handle top-left"></div>
+        </div>
+
+        <!-- Draggable and Resizable Iframe 3 -->
+        <div id="iframe3-wrapper" class="iframe-wrapper w-[350px] h-[450px] top-[100px] left-[500px]">
+            <div class="iframe-header">
+                <span class="text-sm font-semibold text-gray-200">Quote</span>
+            </div>
+            <iframe id="iframe3" class="content-iframe" src="quote.html"></iframe>
+            <div class="resize-handle bottom-right"></div>
+            <div class="resize-handle bottom-left"></div>
+            <div class="resize-handle top-right"></div>
+            <div class="resize-handle top-left"></div>
+        </div>
+
+        <!-- Draggable and Resizable Iframe 4 -->
+        <div id="iframe4-wrapper" class="iframe-wrapper w-[350px] h-[450px] top-[100px] left-[500px]">
+            <div class="iframe-header">
+                <span class="text-sm font-semibold text-gray-200">Weather</span>
+            </div>
+            <iframe id="iframe4" class="content-iframe" src="weather.html"></iframe>
+            <div class="resize-handle bottom-right"></div>
+            <div class="resize-handle bottom-left"></div>
+            <div class="resize-handle top-right"></div>
+            <div class="resize-handle top-left"></div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('dashboard-container');
+            let activeIframe = null;
+            let initialMouseX, initialMouseY, initialIframeX, initialIframeY;
+
+            // Function to save the current state of an iframe
+            function saveIframeState(iframeId) {
+                const iframeWrapper = document.getElementById(`${iframeId}-wrapper`);
+                const state = {
+                    left: iframeWrapper.style.left,
+                    top: iframeWrapper.style.top,
+                    width: iframeWrapper.style.width,
+                    height: iframeWrapper.style.height
+                };
+                localStorage.setItem(iframeId, JSON.stringify(state));
+            }
+
+            // Function to load the saved state of all iframes
+            function loadIframeState() {
+                document.querySelectorAll('.iframe-wrapper').forEach(wrapper => {
+                    const iframeId = wrapper.id.replace('-wrapper', '');
+                    const savedState = localStorage.getItem(iframeId);
+                    if (savedState) {
+                        const state = JSON.parse(savedState);
+                        wrapper.style.left = state.left;
+                        wrapper.style.top = state.top;
+                        wrapper.style.width = state.width;
+                        wrapper.style.height = state.height;
+                    }
+                });
+            }
+
+            // Load saved state on page load
+            loadIframeState();
+
+            // Function to handle dragging
+            function startDrag(e) {
+                // Find the parent iframe-wrapper
+                const iframeWrapper = e.target.closest('.iframe-wrapper');
+                if (!iframeWrapper) return;
+
+                activeIframe = iframeWrapper;
+                activeIframe.style.zIndex = '1000'; // Bring to front
+
+                // Get initial mouse position and iframe position
+                initialMouseX = e.clientX;
+                initialMouseY = e.clientY;
+                initialIframeX = activeIframe.offsetLeft;
+                initialIframeY = activeIframe.offsetTop;
+
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('mouseup', stopDrag);
+            }
+
+            function drag(e) {
+                if (!activeIframe) return;
+
+                // Calculate new position
+                let dx = e.clientX - initialMouseX;
+                let dy = e.clientY - initialMouseY;
+                let newX = initialIframeX + dx;
+                let newY = initialIframeY + dy;
+
+                // Clamp to container boundaries
+                const containerWidth = container.clientWidth;
+                const containerHeight = container.clientHeight;
+                const iframeWidth = activeIframe.offsetWidth;
+                const iframeHeight = activeIframe.offsetHeight;
+
+                newX = Math.max(0, Math.min(newX, containerWidth - iframeWidth));
+                newY = Math.max(0, Math.min(newY, containerHeight - iframeHeight));
+
+                activeIframe.style.left = `${newX}px`;
+                activeIframe.style.top = `${newY}px`;
+            }
+
+            function stopDrag() {
+                if (activeIframe) {
+                    saveIframeState(activeIframe.id.replace('-wrapper', '')); // Save state
+                    activeIframe.style.zIndex = 'auto'; // Reset z-index
+                    activeIframe = null;
+                }
+                document.removeEventListener('mousemove', drag);
+                document.removeEventListener('mouseup', stopDrag);
+            }
+
+            // Function to handle resizing
+            function startResize(e) {
+                e.stopPropagation(); // Prevents drag event from firing
+
+                const resizeHandle = e.target;
+                const iframeWrapper = resizeHandle.closest('.iframe-wrapper');
+
+                if (!iframeWrapper) return;
+
+                // Store initial size, position, and mouse coordinates
+                const initialWidth = iframeWrapper.offsetWidth;
+                const initialHeight = iframeWrapper.offsetHeight;
+                const initialX = iframeWrapper.offsetLeft;
+                const initialY = iframeWrapper.offsetTop;
+                const initialClientX = e.clientX;
+                const initialClientY = e.clientY;
+
+                // Handle mouse move during resize
+                function resize(moveEvent) {
+                    let newWidth = initialWidth;
+                    let newHeight = initialHeight;
+                    let newX = initialX;
+                    let newY = initialY;
+
+                    if (resizeHandle.classList.contains('bottom-right')) {
+                        newWidth = initialWidth + (moveEvent.clientX - initialClientX);
+                        newHeight = initialHeight + (moveEvent.clientY - initialClientY);
+                    } else if (resizeHandle.classList.contains('bottom-left')) {
+                        newWidth = initialWidth - (moveEvent.clientX - initialClientX);
+                        newHeight = initialHeight + (moveEvent.clientY - initialClientY);
+                        newX = initialX + (moveEvent.clientX - initialClientX);
+                    } else if (resizeHandle.classList.contains('top-right')) {
+                        newWidth = initialWidth + (moveEvent.clientX - initialClientX);
+                        newHeight = initialHeight - (moveEvent.clientY - initialClientY);
+                        newY = initialY + (moveEvent.clientY - initialClientY);
+                    } else if (resizeHandle.classList.contains('top-left')) {
+                        newWidth = initialWidth - (moveEvent.clientX - initialClientX);
+                        newHeight = initialHeight - (moveEvent.clientY - initialClientY);
+                        newX = initialX + (moveEvent.clientX - initialClientX);
+                        newY = initialY + (moveEvent.clientY - initialClientY);
+                    }
+
+                    // Set a minimum size
+                    if (newWidth > 150) {
+                        iframeWrapper.style.width = `${newWidth}px`;
+                        iframeWrapper.style.left = `${newX}px`;
+                    }
+                    if (newHeight > 150) {
+                        iframeWrapper.style.height = `${newHeight}px`;
+                        iframeWrapper.style.top = `${newY}px`;
+                    }
+                }
+
+                // Handle mouse up to stop resizing
+                function stopResize() {
+                    saveIframeState(iframeWrapper.id.replace('-wrapper', '')); // Save state
+                    document.removeEventListener('mousemove', resize);
+                    document.removeEventListener('mouseup', stopResize);
+                }
+
+                document.addEventListener('mousemove', resize);
+                document.addEventListener('mouseup', stopResize);
+            }
+
+            // Attach event listeners to all draggable headers and resizable handles
+            document.querySelectorAll('.iframe-header').forEach(header => {
+                header.addEventListener('mousedown', startDrag);
+            });
+
+            document.querySelectorAll('.resize-handle').forEach(handle => {
+                handle.addEventListener('mousedown', startResize);
+            });
+        });
+
+    </script>
+</body>
+</html>

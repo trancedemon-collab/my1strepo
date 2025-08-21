@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Adwaita Dark Theme Colors */
+        :root {
+            --adwaita-bg: #2e3436;
+            --adwaita-surface: #3c3c3c;
+            --adwaita-text: #ffffff;
+            --adwaita-text-secondary: #c0c0c0;
+            --adwaita-blue: #3584e4;
+            --adwaita-blue-hover: #4e9a06; /* Green for better contrast */
+            --adwaita-red: #ef2929;
+            --adwaita-border: #4e4e4e;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--adwaita-bg);
+            color: var(--adwaita-text);
+        }
+
+        /* Custom styles to enhance the Adwaita theme */
+        .adwaita-card {
+            background-color: var(--adwaita-surface);
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--adwaita-border);
+        }
+
+        .adwaita-button {
+            transition: all 0.2s ease-in-out;
+            background-color: var(--adwaita-blue);
+            color: white;
+            font-weight: bold;
+        }
+
+        .adwaita-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            background-color: var(--adwaita-blue-hover);
+        }
+
+        .adwaita-button:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        .adwaita-input {
+            background-color: var(--adwaita-surface);
+            border: 1px solid var(--adwaita-border);
+            color: var(--adwaita-text);
+        }
+
+        .ring-animation {
+            animation: pulse-ring 1s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+        }
+
+        /* Style for the flashing title */
+        .flashing-title {
+            animation: flash-title 1s infinite;
+        }
+
+        @keyframes flash-title {
+            0%, 49% {
+                color: var(--adwaita-text);
+            }
+            50%, 100% {
+                color: var(--adwaita-red);
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Main Container -->
+    <div class="adwaita-card w-full max-w-xl p-8 space-y-8 text-center">
+        <h1 class="text-4xl font-extrabold" style="color: var(--adwaita-text);">Alarm</h1>
+
+        <!-- Message Box -->
+        <div id="message-box" class="hidden rounded p-4 text-sm font-medium transition-all duration-300"></div>
+
+        <!-- Current Time Display -->
+        <div class="space-y-2">
+            <div style="color: var(--adwaita-text-secondary);">CURRENT TIME</div>
+            <div id="current-time" class="text-5xl md:text-6xl font-bold tracking-tight transition-colors duration-300"></div>
+        </div>
+
+        <!-- Alarm Status Display -->
+        <div class="space-y-4">
+            <div id="alarm-info-container" class="hidden space-y-2">
+                <div class="text-sm" style="color: var(--adwaita-text-secondary);">Alarm Set For: <span id="set-alarm-time" style="color: var(--adwaita-text); font-weight: bold;"></span></div>
+                <div class="text-2xl font-semibold" style="color: var(--adwaita-red);">
+                    TIME LEFT: <span id="time-left"></span>
+                </div>
+            </div>
+            <!-- Dynamic button for canceling/stopping the alarm -->
+            <button id="action-button" class="hidden adwaita-button font-bold py-2 px-4 rounded-full shadow-lg transition-colors duration-300"></button>
+        </div>
+
+        <!-- Recently Used Alarms -->
+        <div id="last-alarms-section" class="hidden">
+            <h2 class="text-lg mb-2" style="color: var(--adwaita-text-secondary);">Recently Used</h2>
+            <div id="last-alarms-container" class="flex flex-wrap justify-center gap-2">
+                <!-- Buttons will be dynamically generated here -->
+            </div>
+        </div>
+
+        <!-- Custom Alarm Input -->
+        <div class="flex flex-col sm:flex-row gap-4 items-center justify-center">
+            <input type="text" id="custom-hms-input" placeholder="hh:mm:ss" class="adwaita-input w-full sm:w-auto p-3 text-center rounded-lg shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-300">
+            <button id="set-alarm" class="adwaita-button py-3 px-6 rounded-lg shadow-md w-full sm:w-auto">Set Alarm</button>
+        </div>
+    </div>
+
+    <!-- Moved script to the end of the body for better loading reliability -->
+    <script>
+        // DOM element references
+        const currentTimeEl = document.getElementById('current-time');
+        const setAlarmTimeEl = document.getElementById('set-alarm-time');
+        const timeLeftEl = document.getElementById('time-left');
+        const customHmsInput = document.getElementById('custom-hms-input');
+        const setAlarmBtn = document.getElementById('set-alarm');
+        const alarmInfoContainer = document.getElementById('alarm-info-container');
+        const messageBox = document.getElementById('message-box');
+        const actionButton = document.getElementById('action-button');
+        const lastAlarmsContainer = document.getElementById('last-alarms-container');
+        const lastAlarmsSection = document.getElementById('last-alarms-section');
+        const originalTitle = document.title;
+        let titleInterval = null;
+
+        // Global state variables
+        let alarmTime = null;
+        let countdownInterval = null;
+        let alarmSound = null;
+        let alarmTimeout = null;
+        const localStorageKey = 'recentAlarms';
+
+        // Function to display messages to the user
+        function showMessage(text, type = 'success') {
+            messageBox.textContent = text;
+            messageBox.classList.remove('hidden', 'bg-green-600', 'bg-red-600');
+            if (type === 'success') {
+                messageBox.style.backgroundColor = 'var(--adwaita-blue)';
+            } else if (type === 'error') {
+                messageBox.style.backgroundColor = 'var(--adwaita-red)';
+            }
+            // Auto-hide the message after 5 seconds
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Function to play the alarm sound using a public URL
+        function playAlarmSound() {
+            try {
+                // Using a reliable, publicly available sound URL for a morse code sound
+                const soundUrl = "https://bigsoundbank.com/UPLOAD/mp3/0063.mp3";
+
+                // Create a new Audio object
+                alarmSound = new Audio(soundUrl);
+
+                // Set the sound to loop and play it.
+                alarmSound.loop = true;
+                alarmSound.play().catch(error => {
+                    console.error("Error playing alarm sound:", error);
+                    showMessage('An error occurred while playing the alarm sound.', 'error');
+                });
+
+                // Stop the sound after 1 minute (60 seconds)
+                alarmTimeout = setTimeout(() => {
+                    if (alarmSound) {
+                        alarmSound.pause();
+                        alarmSound.currentTime = 0;
+                        alarmSound = null;
+                    }
+                }, 60000); // 60 seconds
+
+                // Change action button to "Stop Alarm"
+                actionButton.textContent = 'Stop Alarm';
+                actionButton.style.backgroundColor = 'var(--adwaita-red)';
+
+                // Add ringing animation to the main container
+                alarmInfoContainer.classList.add('ring-animation');
+
+                // Start flashing the page title
+                titleInterval = setInterval(() => {
+                    document.title = (document.title === "ALARM RINGING!") ? originalTitle : "ALARM RINGING!";
+                }, 1000);
+
+            } catch (error) {
+                console.error("Error playing alarm sound:", error);
+                showMessage('An error occurred while playing the alarm sound.', 'error');
+            }
+        }
+
+        // Function to clear all alarm state
+        function clearAlarm() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            if (alarmTimeout) {
+                clearTimeout(alarmTimeout);
+                alarmTimeout = null;
+            }
+            if (alarmSound) {
+                alarmSound.pause();
+                alarmSound.currentTime = 0;
+                alarmSound = null;
+            }
+
+            // Stop the title flashing
+            if (titleInterval) {
+                clearInterval(titleInterval);
+                document.title = originalTitle;
+            }
+
+            alarmTime = null;
+            alarmInfoContainer.classList.add('hidden');
+            alarmInfoContainer.classList.remove('ring-animation');
+            actionButton.classList.add('hidden');
+            setAlarmTimeEl.textContent = '';
+            timeLeftEl.textContent = '';
+            showMessage('Alarm has been cleared.', 'success');
+        }
+
+        // Event listener for the dynamic action button
+        actionButton.addEventListener('click', () => {
+            if (actionButton.textContent === 'Stop Alarm') {
+                clearAlarm();
+                showMessage('Alarm stopped.', 'success');
+            } else {
+                clearAlarm();
+            }
+        });
+
+        // Function to update the countdown
+        function updateCountdown() {
+            if (!alarmTime) {
+                return;
+            }
+
+            const now = new Date();
+            const timeDifference = alarmTime.getTime() - now.getTime();
+
+            if (timeDifference <= 0) {
+                timeLeftEl.textContent = '00:00:00';
+                showMessage('Alarm ringing!', 'success');
+
+                playAlarmSound();
+                clearInterval(countdownInterval); // Stop the countdown
+                countdownInterval = null;
+                return;
+            }
+
+            // Calculate remaining time
+            const totalSeconds = Math.floor(timeDifference / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            const format = (num) => String(num).padStart(2, '0');
+            timeLeftEl.textContent = `${format(hours)}:${format(minutes)}:${format(seconds)}`;
+        }
+
+        // Function to set the alarm
+        function setAlarm(futureTime) {
+            // Cancel any existing alarm first
+            clearAlarm();
+
+            alarmTime = futureTime;
+
+            // Show the alarm information container
+            alarmInfoContainer.classList.remove('hidden');
+
+            // Format the set alarm time
+            const formatTime = (date) => {
+                let hours = date.getHours();
+                const minutes = date.getMinutes();
+                const seconds = date.getSeconds();
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                hours = hours % 12;
+                hours = hours ? hours : 12; // The hour '0' should be '12'
+                return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')} ${ampm}`;
+            };
+            setAlarmTimeEl.textContent = formatTime(alarmTime);
+
+            // Set up the action button for cancelling
+            actionButton.classList.remove('hidden');
+            actionButton.textContent = 'Cancel Alarm';
+            actionButton.style.backgroundColor = 'var(--adwaita-blue)';
+
+            // Start the countdown
+            countdownInterval = setInterval(updateCountdown, 1000);
+            updateCountdown(); // Call immediately to avoid a 1-second delay
+            showMessage(`Alarm set for ${setAlarmTimeEl.textContent}.`, 'success');
+        }
+
+        // Function to save alarms to local storage
+        function saveAlarmsToLocalStorage(alarms) {
+            try {
+                const serializedAlarms = JSON.stringify(alarms);
+                localStorage.setItem(localStorageKey, serializedAlarms);
+            } catch (error) {
+                console.error("Error saving to local storage:", error);
+            }
+        }
+
+        // Function to load alarms from local storage
+        function loadAlarmsFromLocalStorage() {
+            try {
+                const serializedAlarms = localStorage.getItem(localStorageKey);
+                if (serializedAlarms === null) {
+                    return [];
+                }
+                return JSON.parse(serializedAlarms);
+            } catch (error) {
+                console.error("Error loading from local storage:", error);
+                return [];
+            }
+        }
+
+        // Function to render the recent alarms as buttons
+        function renderLastAlarms() {
+            const alarms = loadAlarmsFromLocalStorage();
+            lastAlarmsContainer.innerHTML = ''; // Clear existing buttons
+
+            if (alarms.length > 0) {
+                lastAlarmsSection.classList.remove('hidden');
+                alarms.forEach(alarm => {
+                    const button = document.createElement('button');
+                    button.textContent = alarm;
+                    button.classList.add(
+                        'adwaita-button',
+                        'py-2',
+                        'px-4',
+                        'rounded-full',
+                        'shadow-md',
+                        'text-sm'
+                    );
+                    button.addEventListener('click', () => {
+                        customHmsInput.value = alarm;
+                        setAlarmBtn.click();
+                    });
+                    lastAlarmsContainer.appendChild(button);
+                });
+            } else {
+                lastAlarmsSection.classList.add('hidden');
+            }
+        }
+
+        // Initial calls and event listener setup when the window loads
+        window.onload = function() {
+            setInterval(updateCurrentTime, 1000);
+            updateCurrentTime(); // Initial call to display time immediately
+
+            // Render any previously saved alarms on load
+            renderLastAlarms();
+
+            // Event listener for custom alarm button
+            setAlarmBtn.addEventListener('click', () => {
+                const input = customHmsInput.value;
+
+                // Validate input format
+                const hmsArray = input.split(':').map(part => parseInt(part, 10));
+                let hours = 0;
+                let minutes = 0;
+                let seconds = 0;
+                if (hmsArray.length === 3) {
+                    [hours, minutes, seconds] = hmsArray;
+                } else if (hmsArray.length === 2) {
+                    [minutes, seconds] = hmsArray;
+                } else if (hmsArray.length === 1) {
+                    [seconds] = hmsArray;
+                }
+                if (isNaN(hours) || isNaN(minutes) || isNaN(seconds) || hours < 0 || minutes < 0 || seconds < 0) {
+                    showMessage('Please enter a valid hh:mm:ss format (e.g., 00:00:30).', 'error');
+                    return;
+                }
+                const totalMilliseconds = (hours * 3600 + minutes * 60 + seconds) * 1000;
+                if (totalMilliseconds <= 0) {
+                    showMessage('Please enter a duration greater than 0.', 'error');
+                    return;
+                }
+
+                // Update local storage with the new alarm setting
+                let recentAlarms = loadAlarmsFromLocalStorage();
+                const index = recentAlarms.indexOf(input);
+                if (index !== -1) {
+                    // If the alarm is already in the list, move it to the front
+                    recentAlarms.splice(index, 1);
+                }
+                recentAlarms.unshift(input);
+                saveAlarmsToLocalStorage(recentAlarms.slice(0, 2)); // Keep only the last 2
+
+                // Re-render the buttons
+                renderLastAlarms();
+
+                // Set the actual alarm
+                const futureTime = new Date(Date.now() + totalMilliseconds);
+                setAlarm(futureTime);
+            });
+        };
+
+        // Function to update current time every second
+        function updateCurrentTime() {
+            const now = new Date();
+            let hours = now.getHours();
+            const minutes = now.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // The hour '0' should be '12'
+            const format = (num) => String(num).padStart(2, '0');
+
+            currentTimeEl.textContent = `${format(hours)}:${format(minutes)} ${ampm}`;
+        }
+    </script>
+</body>
+</html>

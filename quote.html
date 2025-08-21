@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Gentle Reminder</title>
+    <style>
+        body {
+            background-color: #2e3436; /* GTK Dark Theme Background */
+            color: #d3d7cf; /* GTK Dark Theme Foreground */
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300&display=swap');
+
+        .quote {
+            font-size: 2.5em;
+            font-weight: 300;
+            letter-spacing: 1px;
+            line-height: 1.4;
+            opacity: 0; /* Start hidden */
+            animation: fadeInOut 5s infinite alternate; /* Continuous fade in and out */
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="quote">
+        "Reminder! I am temporary and I am flawed."
+    </div>
+</body>
+</html>
