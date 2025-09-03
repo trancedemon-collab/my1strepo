@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Who Owes Who What?</title>
+    <!-- Use Tailwind CSS for Adwaita-like dark theme styling and responsiveness -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom Adwaita-like dark theme colors */
+        :root {
+            --bg-dark: #2E3436; /* Dark gray */
+            --bg-light: #3D4447; /* Slightly lighter gray for containers */
+            --text-primary: #f5f6f8; /* Off-white for text */
+            --text-secondary: #909090; /* Gray for labels/placeholders */
+            --accent-blue: #3465a4; /* Adwaita blue */
+            --accent-green: #4e9a06; /* Adwaita green */
+            --border-color: #555753; /* Border color */
+        }
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .container {
+            background-color: var(--bg-light);
+        }
+        .btn-primary {
+            background-color: var(--accent-blue);
+            color: white;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .btn-primary:hover {
+            background-color: #4b8cd9; /* Lighter blue on hover */
+        }
+        .btn-green {
+            background-color: var(--accent-green);
+            color: white;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .btn-green:hover {
+            background-color: #63b80b; /* Lighter green on hover */
+        }
+        input, .results-container {
+            background-color: var(--bg-dark);
+            border-color: var(--border-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto p-6 md:p-10 rounded-xl shadow-lg mt-8 md:mt-16 max-w-xl border border-gray-700">
+        <h1 class="text-3xl md:text-4xl font-bold text-center mb-6 md:mb-8 text-white">Who Owes Who What?</h1>
+
+        <!-- Input section -->
+        <div id="input-container" class="space-y-4">
+            <!-- Initial input fields, will be cloned -->
+            <div class="flex flex-col md:flex-row gap-4">
+                <input type="text" class="person-name flex-1 p-3 rounded-md text-sm md:text-base border focus:outline-none focus:ring-2 focus:ring-accent-blue placeholder:text-text-secondary" placeholder="Specify name of person" aria-label="Person's name">
+                <input type="number" step="0.01" class="person-amount flex-1 p-3 rounded-md text-sm md:text-base border focus:outline-none focus:ring-2 focus:ring-accent-blue placeholder:text-text-secondary" placeholder="How much did he spend?" aria-label="Amount spent">
+            </div>
+            <div class="flex flex-col md:flex-row gap-4">
+                <input type="text" class="person-name flex-1 p-3 rounded-md text-sm md:text-base border focus:outline-none focus:ring-2 focus:ring-accent-blue placeholder:text-text-secondary" placeholder="Specify name of person" aria-label="Person's name">
+                <input type="number" step="0.01" class="person-amount flex-1 p-3 rounded-md text-sm md:text-base border focus:outline-none focus:ring-2 focus:ring-accent-blue placeholder:text-text-secondary" placeholder="How much did he spend?" aria-label="Amount spent">
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center mt-6">
+            <button id="add-person-btn" class="btn-primary py-2 px-4 rounded-md text-sm md:text-base font-semibold">Add another person</button>
+            <button id="calculate-btn" class="btn-green py-2 px-4 rounded-md text-sm md:text-base font-semibold">Calculate</button>
+        </div>
+
+        <!-- Results section -->
+        <div id="results-summary" class="hidden mt-8 md:mt-12 p-6 rounded-md border border-gray-700 results-container">
+            <h2 class="text-2xl md:text-3xl font-bold mb-4">Results and Summary</h2>
+            <p id="total-summary" class="mb-4 text-sm md:text-base"></p>
+            <ul id="results-list" class="space-y-3"></ul>
+            <button id="reset-btn" class="btn-primary w-full py-2 mt-6 rounded-md text-sm md:text-base font-semibold">Reset</button>
+        </div>
+
+        <!-- Custom Modal for Alerts -->
+        <div id="alert-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
+                <p id="alert-message" class="text-white text-lg mb-4"></p>
+                <button id="alert-ok-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get references to all necessary DOM elements
+            const inputContainer = document.getElementById('input-container');
+            const addPersonBtn = document.getElementById('add-person-btn');
+            const calculateBtn = document.getElementById('calculate-btn');
+            const resultsSummary = document.getElementById('results-summary');
+            const resultsList = document.getElementById('results-list');
+            const totalSummary = document.getElementById('total-summary');
+            const resetBtn = document.getElementById('reset-btn');
+
+            // Modal elements
+            const alertModal = document.getElementById('alert-modal');
+            const alertMessage = document.getElementById('alert-message');
+            const alertOkBtn = document.getElementById('alert-ok-btn');
+
+            // Function to show a custom modal alert
+            function showAlert(message) {
+                alertMessage.textContent = message;
+                alertModal.classList.remove('hidden');
+                alertOkBtn.onclick = () => {
+                    alertModal.classList.add('hidden');
+                };
+            }
+
+            // Function to add a new set of input fields
+            function addPersonInputFields() {
+                const newPersonDiv = document.createElement('div');
+                newPersonDiv.className = 'flex flex-col md:flex-row gap-4';
+                newPersonDiv.innerHTML = `
+                    <input type="text" class="person-name flex-1 p-3 rounded-md text-sm md:text-base border focus:outline-none focus:ring-2 focus:ring-accent-blue placeholder:text-text-secondary" placeholder="Specify name of person" aria-label="Person's name">
+                    <input type="number" step="0.01" class="person-amount flex-1 p-3 rounded-md text-sm md:text-base border focus:outline-none focus:ring-2 focus:ring-accent-blue placeholder:text-text-secondary" placeholder="How much did he spend?" aria-label="Amount spent">
+                `;
+                inputContainer.appendChild(newPersonDiv);
+            }
+
+            // Function to handle the calculation logic
+            function calculateDebts() {
+                const names = document.querySelectorAll('.person-name');
+                const amounts = document.querySelectorAll('.person-amount');
+                const people = [];
+                let totalSpent = 0;
+
+                // 1. Collect data from input fields and validate
+                for (let i = 0; i < names.length; i++) {
+                    const name = names[i].value.trim();
+                    const amount = parseFloat(amounts[i].value);
+
+                    // Skip empty rows
+                    if (!name && (isNaN(amount) || amount === 0)) {
+                        continue;
+                    }
+
+                    // Validation check
+                    if (!name || isNaN(amount) || amount < 0) {
+                        showAlert('Please fill in both the name and a valid amount for all people.');
+                        return;
+                    }
+
+                    people.push({ name: name, spent: amount });
+                    totalSpent += amount;
+                }
+
+                if (people.length < 2) {
+                    showAlert('Please enter at least two people to calculate!');
+                    return;
+                }
+
+                // 2. Calculate average spending
+                const averageSpent = totalSpent / people.length;
+
+                // 3. Separate people into creditors (spent more) and debtors (spent less)
+                const creditors = [];
+                const debtors = [];
+
+                people.forEach(person => {
+                    const diff = person.spent - averageSpent;
+                    if (diff > 0.01) { // A small tolerance for floating point numbers
+                        creditors.push({ name: person.name, amount: diff });
+                    } else if (diff < -0.01) {
+                        debtors.push({ name: person.name, amount: -diff });
+                    }
+                });
+
+                // 4. Calculate the simplified transactions
+                const transactions = [];
+                let creditorIndex = 0;
+                let debtorIndex = 0;
+
+                while (creditorIndex < creditors.length && debtorIndex < debtors.length) {
+                    const creditor = creditors[creditorIndex];
+                    const debtor = debtors[debtorIndex];
+
+                    // Find the amount to be settled
+                    const settleAmount = Math.min(creditor.amount, debtor.amount);
+
+                    transactions.push({
+                        from: debtor.name,
+                        to: creditor.name,
+                        amount: settleAmount
+                    });
+
+                    // Update remaining amounts
+                    creditor.amount -= settleAmount;
+                    debtor.amount -= settleAmount;
+
+                    // Move to the next creditor or debtor if their balance is settled
+                    if (Math.abs(debtor.amount) < 0.01) {
+                        debtorIndex++;
+                    }
+                    if (Math.abs(creditor.amount) < 0.01) {
+                        creditorIndex++;
+                    }
+                }
+
+                // 5. Display the results
+                displayResults(people.length, totalSpent, averageSpent, transactions);
+            }
+
+            // Function to display the calculation results
+            function displayResults(numPeople, total, average, transactions) {
+                // Clear previous results
+                resultsList.innerHTML = '';
+
+                // Show the main summary block
+                resultsSummary.classList.remove('hidden');
+
+                // Display total and average
+                totalSummary.textContent = `Total amount spent by all is $${total.toFixed(2)}, so dividing this by ${numPeople} people is $${average.toFixed(2)}.`;
+
+                // Display transactions
+                if (transactions.length === 0) {
+                    const li = document.createElement('li');
+                    li.textContent = "Everyone is square! No one owes anyone anything.";
+                    li.className = "text-center italic text-gray-400";
+                    resultsList.appendChild(li);
+                } else {
+                    transactions.forEach(transaction => {
+                        const li = document.createElement('li');
+                        li.className = "p-3 bg-bg-dark rounded-md border border-gray-700 text-sm md:text-base";
+                        li.textContent = `${transaction.from} owes ${transaction.to} $${transaction.amount.toFixed(2)}.`;
+                        resultsList.appendChild(li);
+                    });
+                }
+            }
+
+            // Function to reset the application state
+            function resetApp() {
+                // Clear all input fields and hide the results
+                document.querySelectorAll('.person-name').forEach(input => input.value = '');
+                document.querySelectorAll('.person-amount').forEach(input => input.value = '');
+                resultsSummary.classList.add('hidden');
+
+                // Remove dynamically added input field pairs, keeping only the first two
+                const allInputPairs = inputContainer.querySelectorAll('div');
+                for (let i = allInputPairs.length - 1; i >= 2; i--) {
+                    allInputPairs[i].remove();
+                }
+            }
+
+            // Event listeners
+            addPersonBtn.addEventListener('click', addPersonInputFields);
+            calculateBtn.addEventListener('click', calculateDebts);
+            resetBtn.addEventListener('click', resetApp);
+        });
+    </script>
+</body>
+</html>

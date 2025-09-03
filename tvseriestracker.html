@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TV Series Tracker</title>
+    <!-- Inter font and Tailwind CSS CDN for styling -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom CSS for Adwaita-like dark theme */
+        :root {
+            --bg-color: #2e3436;
+            --surface-color: #3b4142;
+            --text-color: #d3d7cf;
+            --primary-color: #409ed9;
+            --primary-dark-color: #2b70b3;
+            --danger-color: #cc0000;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Set Tailwind's custom colors for easy use */
+        .adwaita-bg { background-color: var(--bg-color); }
+        .adwaita-surface { background-color: var(--surface-color); }
+        .adwaita-text { color: var(--text-color); }
+        .adwaita-primary { background-color: var(--primary-color); }
+        .adwaita-primary-dark { background-color: var(--primary-dark-color); }
+        .adwaita-danger { background-color: var(--danger-color); }
+        .adwaita-border { border-color: var(--surface-color); }
+
+        input[type="text"], input[type="number"] {
+            background-color: var(--surface-color);
+            border-color: var(--bg-color);
+        }
+
+        input:focus {
+            outline: 2px solid var(--primary-color);
+        }
+
+        /* Hide number input arrows on some browsers */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="adwaita-bg adwaita-text flex flex-col items-center justify-start min-h-screen p-4">
+
+    <!-- Main container for the application -->
+    <div class="w-full max-w-2xl mx-auto space-y-6">
+
+        <!-- Header -->
+        <header class="text-center">
+            <h1 class="text-4xl font-bold adwaita-text">Series Tracker</h1>
+            <p class="text-gray-400 mt-2">Never forget what episode you're on.</p>
+        </header>
+
+        <!-- Input Form to add a new series -->
+        <div class="adwaita-surface p-6 rounded-2xl shadow-lg border adwaita-border">
+            <h2 class="text-xl font-semibold mb-4">Add a New Series</h2>
+            <form id="series-form" class="space-y-4">
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <div class="flex-1">
+                        <label for="series-name" class="block text-sm font-medium mb-1">Series Name</label>
+                        <input type="text" id="series-name" name="series-name" required placeholder="The Mandalorian"
+                               class="w-full rounded-lg p-2.5 adwaita-text border adwaita-border focus:ring-2 focus:ring-adwaita-primary">
+                    </div>
+                    <div class="flex-1">
+                        <label for="episodes-count" class="block text-sm font-medium mb-1">Number of Episodes</label>
+                        <input type="number" id="episodes-count" name="episodes-count" required min="1" value="1"
+                               class="w-full rounded-lg p-2.5 adwaita-text border adwaita-border focus:ring-2 focus:ring-adwaita-primary">
+                    </div>
+                </div>
+                <button type="submit"
+                        class="w-full adwaita-primary text-white font-semibold py-3 rounded-lg shadow-md hover:adwaita-primary-dark transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-adwaita-primary">
+                    Add Series
+                </button>
+            </form>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-end">
+            <button id="clear-all-btn"
+                    class="adwaita-danger text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-red-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-adwaita-danger">
+                Clear All Series
+            </button>
+        </div>
+
+        <!-- Container for the list of series -->
+        <div id="series-list" class="space-y-4">
+            <!-- Series will be rendered here dynamically -->
+        </div>
+
+    </div>
+
+    <script>
+        // Get references to key DOM elements
+        const seriesForm = document.getElementById('series-form');
+        const seriesList = document.getElementById('series-list');
+        const clearAllBtn = document.getElementById('clear-all-btn');
+        const seriesNameInput = document.getElementById('series-name');
+        const episodesCountInput = document.getElementById('episodes-count');
+
+        // Main data array to hold all series info
+        let seriesData = [];
+
+        // Function to load data from localStorage
+        const loadData = () => {
+            const data = localStorage.getItem('seriesTrackerData');
+            if (data) {
+                seriesData = JSON.parse(data);
+            }
+        };
+
+        // Function to save data to localStorage
+        const saveData = () => {
+            localStorage.setItem('seriesTrackerData', JSON.stringify(seriesData));
+        };
+
+        // Function to render the series list on the page
+        const renderSeriesList = () => {
+            seriesList.innerHTML = ''; // Clear previous list
+            if (seriesData.length === 0) {
+                seriesList.innerHTML = '<p class="text-center text-gray-400">No series added yet. Add one above!</p>';
+                return;
+            }
+
+            seriesData.forEach((series, seriesIndex) => {
+                // Create container for a single series
+                const seriesContainer = document.createElement('div');
+                seriesContainer.className = 'adwaita-surface p-6 rounded-2xl shadow-lg border adwaita-border';
+                seriesContainer.dataset.index = seriesIndex; // Store index for easy access
+
+                // Create header with title and delete button
+                const header = document.createElement('div');
+                header.className = 'flex justify-between items-center mb-4';
+
+                const title = document.createElement('h3');
+                title.className = 'text-xl font-bold';
+                title.textContent = series.name;
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn adwaita-danger text-white text-sm py-1 px-3 rounded-lg hover:bg-red-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-adwaita-danger';
+                deleteBtn.textContent = 'Delete Series';
+                deleteBtn.dataset.index = seriesIndex; // Store index to identify which series to delete
+
+                header.appendChild(title);
+                header.appendChild(deleteBtn);
+
+                // Create container for episode checkboxes
+                const episodesContainer = document.createElement('div');
+                episodesContainer.className = 'grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3';
+
+                // Loop to create checkboxes for each episode
+                for (let i = 0; i < series.episodes.length; i++) {
+                    const episodeBox = document.createElement('div');
+                    episodeBox.className = 'flex flex-col items-center justify-center space-y-1';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'episode-checkbox h-5 w-5 rounded-md text-adwaita-primary focus:ring-adwaita-primary focus:ring-offset-adwaita-surface';
+                    checkbox.checked = series.episodes[i];
+                    checkbox.dataset.seriesIndex = seriesIndex;
+                    checkbox.dataset.episodeIndex = i;
+
+                    const label = document.createElement('label');
+                    label.textContent = `${i + 1}`;
+                    label.className = 'text-sm font-medium';
+
+                    episodeBox.appendChild(checkbox);
+                    episodeBox.appendChild(label);
+                    episodesContainer.appendChild(episodeBox);
+                }
+
+                seriesContainer.appendChild(header);
+                seriesContainer.appendChild(episodesContainer);
+                seriesList.appendChild(seriesContainer);
+            });
+        };
+
+        // Event listener for adding a new series
+        seriesForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const seriesName = seriesNameInput.value.trim();
+            const episodesCount = parseInt(episodesCountInput.value);
+
+            if (seriesName && episodesCount > 0) {
+                // Check if series already exists to avoid duplicates
+                const existingSeries = seriesData.find(series => series.name.toLowerCase() === seriesName.toLowerCase());
+                if (existingSeries) {
+                    alert('This series already exists!');
+                    return;
+                }
+
+                // Create a new series object
+                const newSeries = {
+                    name: seriesName,
+                    episodes: new Array(episodesCount).fill(false) // Initialize all episodes as unwatched
+                };
+
+                seriesData.push(newSeries);
+                saveData();
+                renderSeriesList();
+
+                // Reset form inputs
+                seriesNameInput.value = '';
+                episodesCountInput.value = 1;
+            }
+        });
+
+        // Event delegation for handling checkbox changes and delete buttons
+        seriesList.addEventListener('change', (e) => {
+            if (e.target.classList.contains('episode-checkbox')) {
+                const seriesIndex = parseInt(e.target.dataset.seriesIndex);
+                const episodeIndex = parseInt(e.target.dataset.episodeIndex);
+
+                // Update the state in the data array
+                seriesData[seriesIndex].episodes[episodeIndex] = e.target.checked;
+                saveData();
+            }
+        });
+
+        seriesList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-btn')) {
+                const seriesIndex = parseInt(e.target.dataset.index);
+
+                // Remove the series from the data array
+                seriesData.splice(seriesIndex, 1);
+                saveData();
+                renderSeriesList();
+            }
+        });
+
+        // Event listener for the "Clear All" button
+        clearAllBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear all your series? This cannot be undone.')) {
+                seriesData = [];
+                saveData();
+                renderSeriesList();
+            }
+        });
+
+        // Initialize the app by loading data and rendering the list
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            renderSeriesList();
+        });
+    </script>
+</body>
+</html>

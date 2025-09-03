@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Calculator</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="time"],
+        input[type="number"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .result-container {
+            margin-top: 2rem;
+            padding: 1rem;
+            border: 1px dashed #ccc;
+            border-radius: 4px;
+            background-color: #e9ecef;
+        }
+
+        #resultTime {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Time Calculator</h1>
+        <form id="timeForm">
+            <div class="input-group">
+                <label for="startTime">Start Time (HH:mm)</label>
+                <input type="time" id="startTime" name="startTime" required>
+            </div>
+            <div class="input-group">
+                <label for="duration">Add Minutes</label>
+                <input type="number" id="duration" name="duration" required min="0">
+            </div>
+            <button type="submit" id="calculateBtn">Calculate</button>
+        </form>
+        <div class="result-container">
+            <h2>Result:</h2>
+            <p id="resultTime"></p>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const timeForm = document.getElementById('timeForm');
+            const startTimeInput = document.getElementById('startTime');
+            const durationInput = document.getElementById('duration');
+            const resultTimeDisplay = document.getElementById('resultTime');
+
+            // Function to perform the calculation
+            const calculateTime = (event) => {
+                // Prevent form submission if triggered by button click
+                if (event) event.preventDefault(); 
+
+                const startTimeValue = startTimeInput.value;
+                const durationValue = parseInt(durationInput.value, 10);
+
+                if (!startTimeValue || isNaN(durationValue)) {
+                    resultTimeDisplay.textContent = 'Please enter valid values.';
+                    resultTimeDisplay.style.color = 'red';
+                    return;
+                }
+
+                const [hours, minutes] = startTimeValue.split(':').map(Number);
+
+                // Create a Date object for calculation (using an arbitrary date)
+                const startDate = new Date(2000, 0, 1, hours, minutes);
+
+                // Add the duration in minutes
+                startDate.setMinutes(startDate.getMinutes() + durationValue);
+
+                // Format the new time to HH:mm
+                const newHours = String(startDate.getHours()).padStart(2, '0');
+                const newMinutes = String(startDate.getMinutes()).padStart(2, '0');
+                
+                const ampm = newHours >= 12 ? 'PM' : 'AM';
+                const displayHours = newHours % 12 || 12; // Convert to 12-hour format
+
+                resultTimeDisplay.textContent = `${newHours}:${newMinutes} (${displayHours}:${newMinutes} ${ampm})`;
+                resultTimeDisplay.style.color = '#28a745';
+            };
+
+            // Add event listener for form submission
+            timeForm.addEventListener('submit', calculateTime);
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (event) => {
+                switch (event.key) {
+                    case '1':
+                        startTimeInput.focus();
+                        event.preventDefault();
+                        break;
+                    case '2':
+                        durationInput.focus();
+                        event.preventDefault();
+                        break;
+                    case 'Enter':
+                        // Check if the form is valid before computing
+                        if (timeForm.checkValidity()) {
+                            calculateTime();
+                            event.preventDefault();
+                        }
+                        break;
+                    case 'Escape':
+                        startTimeInput.value = '';
+                        durationInput.value = '';
+                        resultTimeDisplay.textContent = '';
+                        resultTimeDisplay.style.color = '#333';
+                        event.preventDefault();
+                        break;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

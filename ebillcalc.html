@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electricity Bill Calculator</title>
+    <!-- Inter font and Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Dark background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .container {
+            max-width: 32rem;
+            width: 100%;
+        }
+        .card {
+            background-color: #2d3748; /* Dark card background */
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        .input-group label {
+            font-weight: 500;
+        }
+        .result-panel {
+            background-color: #4a5568; /* Darker panel background */
+            border: 1px solid #4a5568;
+            padding: 1.5rem;
+            border-radius: 1rem;
+        }
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px dashed #718096; /* Lighter dashed border */
+        }
+        .result-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h1 class="text-3xl font-bold text-center text-gray-100 mb-6">Electricity Bill Calculator</h1>
+        <p class="text-center text-gray-400 mb-8">
+            Enter your meter readings and billing dates to get an estimated bill total based on your consumption.
+        </p>
+
+        <div class="space-y-6">
+            <div class="input-group">
+                <label for="startDate" class="block text-gray-300">Billing Start Date</label>
+                <input type="date" id="startDate" class="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm text-gray-100 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition ease-in-out duration-150">
+            </div>
+
+            <div class="input-group">
+                <label for="startUnits" class="block text-gray-300">Starting Unit Reading</label>
+                <input type="number" id="startUnits" placeholder="e.g., 437" class="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm text-gray-100 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition ease-in-out duration-150">
+            </div>
+            
+            <div class="input-group">
+                <label for="currentUnits" class="block text-gray-300">Current Unit Reading</label>
+                <input type="number" id="currentUnits" placeholder="e.g., 627" class="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm text-gray-100 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition ease-in-out duration-150">
+            </div>
+            
+            <button onclick="calculateBill()" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition ease-in-out duration-150">
+                Calculate Bill
+            </button>
+        </div>
+
+        <div id="results" class="mt-8 hidden">
+            <h2 class="text-xl font-bold text-gray-100 mb-4">Estimated Bill Breakdown</h2>
+            <div class="result-panel">
+                <div class="result-item">
+                    <span class="text-gray-300">Total Units Consumed</span>
+                    <span id="units-consumed" class="font-bold text-gray-100"></span>
+                </div>
+                <div class="result-item">
+                    <span class="text-gray-300">Daily Consumption Rate</span>
+                    <span id="daily-consumption" class="font-bold text-gray-100"></span>
+                </div>
+                <div class="result-item">
+                    <span class="text-gray-300">Slab Category</span>
+                    <span id="current-slab" class="font-bold text-gray-100"></span>
+                </div>
+                <div class="result-item">
+                    <span class="text-gray-300">Energy Charge (To Date)</span>
+                    <span id="energy-charge-current" class="font-bold text-gray-100"></span>
+                </div>
+                <div class="result-item">
+                    <span class="text-gray-300">Projected Units</span>
+                    <span id="projected-units" class="font-bold text-gray-100"></span>
+                </div>
+                <div class="result-item">
+                    <span class="text-gray-300">Projected Energy Charge</span>
+                    <span id="projected-energy-charge" class="font-bold text-gray-100"></span>
+                </div>
+                <div class="result-item">
+                    <span class="text-gray-300">Fixed Charge</span>
+                    <span id="fixed-charge" class="font-bold text-gray-100"></span>
+                </div>
+                <div class="result-item">
+                    <span class="text-gray-300">Electricity Tax (16%)</span>
+                    <span id="electricity-tax" class="font-bold text-gray-100"></span>
+                </div>
+            </div>
+            <div class="mt-4">
+                <div class="p-4 bg-indigo-900 border border-indigo-700 rounded-xl">
+                    <h3 class="text-xl font-bold text-indigo-300">Projected Bill Total</h3>
+                    <p class="text-3xl font-extrabold text-white mt-2" id="final-bill"></p>
+                    <p class="text-sm text-gray-400 mt-2">
+                        *This is an estimate based on your daily consumption rate and the full billing cycle. Final amount is rounded to the nearest Rs. 10.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div id="error-message" class="mt-6 hidden p-4 bg-red-900 text-red-300 rounded-lg">
+            Please fill out all fields with valid data. Make sure the current units are not less than the starting units.
+        </div>
+    </div>
+</div>
+
+<script>
+    // Constants based on the user's provided bill images
+    const FIXED_CHARGE = 140.00;
+    const ELECTRICITY_TAX_RATE = 0.16;
+
+    // Define the tariff slabs and their rates
+    const TARIFF_SLABS = [
+        { units: 100, rate: 4.28 },
+        { units: 200, rate: 11.10 }, // 101 to 300 units (200 units)
+        { units: 200, rate: 15.38 }, // 301 to 500 units (200 units)
+        { units: Infinity, rate: 17.68 } // 501+ units
+    ];
+
+    /**
+     * Calculates the energy charge based on the number of units and the defined tariff slabs.
+     * @param {number} unitsConsumed The total number of units to be charged.
+     * @returns {number} The total energy charge.
+     */
+    function calculateEnergyCharge(unitsConsumed) {
+        let remainingUnits = unitsConsumed;
+        let totalCharge = 0;
+        
+        for (const slab of TARIFF_SLABS) {
+            if (remainingUnits <= 0) break;
+
+            const unitsInSlab = Math.min(remainingUnits, slab.units);
+            totalCharge += unitsInSlab * slab.rate;
+            remainingUnits -= unitsInSlab;
+        }
+
+        return totalCharge;
+    }
+
+    /**
+     * Calculates the estimated bill and updates the HTML content.
+     */
+    function calculateBill() {
+        const startUnits = parseFloat(document.getElementById('startUnits').value);
+        const currentUnits = parseFloat(document.getElementById('currentUnits').value);
+        const startDateString = document.getElementById('startDate').value;
+        const resultsDiv = document.getElementById('results');
+        const errorDiv = document.getElementById('error-message');
+
+        // Reset visibility
+        resultsDiv.classList.add('hidden');
+        errorDiv.classList.add('hidden');
+
+        // Input validation
+        if (isNaN(startUnits) || isNaN(currentUnits) || startUnits < 0 || currentUnits < startUnits || !startDateString) {
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+
+        const startDate = new Date(startDateString);
+        const currentDate = new Date(); // Automatically use today's date
+
+        // Validate dates
+        if (currentDate < startDate) {
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+
+        // --- Calculations for current consumption ---
+        const unitsConsumed = currentUnits - startUnits;
+        const energyChargeCurrent = calculateEnergyCharge(unitsConsumed);
+        
+        // --- Dynamic billing cycle calculation ---
+        const nextMonth = new Date(startDate);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        const billingCycleEndDate = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), startDate.getDate());
+        billingCycleEndDate.setDate(billingCycleEndDate.getDate() - 1);
+        
+        const timeDiffToDate = currentDate.getTime() - startDate.getTime();
+        const daysPassed = Math.ceil(timeDiffToDate / (1000 * 3600 * 24));
+        
+        const timeDiffTotal = billingCycleEndDate.getTime() - startDate.getTime();
+        const totalDaysInCycle = Math.ceil(timeDiffTotal / (1000 * 3600 * 24));
+
+        if (daysPassed <= 0) {
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+        
+        // --- Calculations for projected bill ---
+        const dailyConsumptionRate = unitsConsumed / daysPassed;
+        const projectedUnits = dailyConsumptionRate * totalDaysInCycle;
+        const projectedEnergyCharge = calculateEnergyCharge(projectedUnits);
+        
+        const electricityTax = projectedEnergyCharge * ELECTRICITY_TAX_RATE;
+        const finalBill = projectedEnergyCharge + FIXED_CHARGE + electricityTax;
+        
+        // Determine the projected slab category and its rate
+        let slabCategory = '';
+        let slabRate = 0;
+        if (projectedUnits <= 100) {
+            slabCategory = 'Slab 1 (0-100 units)';
+            slabRate = 4.28;
+        } else if (projectedUnits <= 300) {
+            slabCategory = 'Slab 2 (101-300 units)';
+            slabRate = 11.10;
+        } else if (projectedUnits <= 500) {
+            slabCategory = 'Slab 3 (301-500 units)';
+            slabRate = 15.38;
+        } else {
+            slabCategory = 'Slab 4 (501+ units)';
+            slabRate = 17.68;
+        }
+
+        // Add the rate to the slab category string
+        slabCategory += ` (Rs. ${slabRate.toFixed(2)} per unit)`;
+
+        // Round final bill to the nearest 10
+        const roundedFinalBill = Math.round(finalBill / 10) * 10;
+
+        // --- Update the UI ---
+        document.getElementById('units-consumed').textContent = unitsConsumed.toFixed(2) + ' units';
+        document.getElementById('daily-consumption').textContent = dailyConsumptionRate.toFixed(2) + ' units/day';
+        document.getElementById('current-slab').textContent = slabCategory;
+        document.getElementById('energy-charge-current').textContent = 'Rs. ' + energyChargeCurrent.toFixed(2);
+        
+        const projectedUnitsLabel = document.getElementById('projected-units').previousElementSibling;
+        projectedUnitsLabel.textContent = `Projected Units (${totalDaysInCycle}-Day Cycle)`;
+        document.getElementById('projected-units').textContent = projectedUnits.toFixed(2) + ' units';
+
+        document.getElementById('projected-energy-charge').textContent = 'Rs. ' + projectedEnergyCharge.toFixed(2);
+        document.getElementById('fixed-charge').textContent = 'Rs. ' + FIXED_CHARGE.toFixed(2);
+        document.getElementById('electricity-tax').textContent = 'Rs. ' + electricityTax.toFixed(2);
+        document.getElementById('final-bill').textContent = 'Rs. ' + roundedFinalBill.toFixed(2);
+        
+        resultsDiv.classList.remove('hidden');
+    }
+</script>
+
+</body>
+</html>
+

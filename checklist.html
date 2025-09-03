@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My To-Do Checklist</title>
+    <!-- Use Inter font from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for dark theme */
+        :root {
+            --bg-color-light: #f3f4f6;
+            --text-color-light: #1f2937;
+            --card-bg-light: #ffffff;
+            --accent-light: #4c68ff;
+            --border-light: #e5e7eb;
+        }
+        .dark {
+            --bg-color-dark: #121212;
+            --text-color-dark: #e5e7eb;
+            --card-bg-dark: #1f2937;
+            --accent-dark: #6366f1;
+            --border-dark: #374151;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s ease;
+        }
+        
+        .light body { background-color: var(--bg-color-light); color: var(--text-color-light); }
+        .dark body { background-color: var(--bg-color-dark); color: var(--text-color-dark); }
+        .light .card { background-color: var(--card-bg-light); border-color: var(--border-light); }
+        .dark .card { background-color: var(--card-bg-dark); border-color: var(--border-dark); }
+        .light .accent-button { background-color: var(--accent-light); }
+        .dark .accent-button { background-color: var(--accent-dark); }
+        .light .accent-button:hover { background-color: #3b50d8; }
+        .dark .accent-button:hover { background-color: #4f51c8; }
+        
+        .strikethrough-text {
+            text-decoration: line-through;
+        }
+
+        /* Hide the default checkbox and create a custom one */
+        .custom-checkbox {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 0.25rem;
+            border: 2px solid;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .light .custom-checkbox { border-color: #9ca3af; }
+        .dark .custom-checkbox { border-color: #4b5563; }
+        
+        .custom-checkbox:checked {
+            background-color: #4b5563;
+        }
+        .light .custom-checkbox:checked { background-color: #4b5563; border-color: #4b5563; }
+        .dark .custom-checkbox:checked { background-color: #9ca3af; border-color: #9ca3af; }
+
+        .task-complete {
+            opacity: 0.6;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .task-complete .task-text {
+            text-decoration: line-through;
+        }
+
+        .action-btn svg {
+            transition: transform 0.2s ease-in-out;
+        }
+        .action-btn:hover svg {
+            transform: scale(1.1);
+        }
+
+        .resize-handle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            cursor: nwse-resize;
+            z-index: 10;
+        }
+
+        /* Using a triangle for the resize handle */
+        .resize-handle::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 0 20px 20px;
+            border-color: transparent transparent #4b5563 transparent;
+        }
+
+        .priority-flag {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .priority-high {
+            background-color: #ef4444; /* Red */
+        }
+        .priority-medium {
+            background-color: #facc15; /* Yellow */
+        }
+        .priority-low {
+            background-color: #3b82f6; /* Blue */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 min-h-screen flex items-center justify-center p-4 transition-colors duration-300">
+    <!-- Main Checklist Container -->
+    <div id="checklist-card" class="card w-full max-w-xl p-6 md:p-8 rounded-2xl shadow-xl border border-gray-700 relative overflow-hidden">
+        <!-- Resize Handle -->
+        <div id="resize-handle" class="resize-handle"></div>
+
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold">My To-Do List</h1>
+            <!-- Theme Toggle Button -->
+            <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-700 transition-colors duration-200">
+                <svg id="sun-icon" class="h-6 w-6 text-yellow-400 hidden" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2a10 10 0 100 20 10 10 0 000-20zM4 12a8 8 0 018-8v16a8 8 0 01-8-8z"/>
+                </svg>
+                <svg id="moon-icon" class="h-6 w-6 text-blue-300" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2a10 10 0 100 20 10 10 0 000-20zM4 12a8 8 0 018-8v16a8 8 0 01-8-8z"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Add Task Input Section -->
+        <div class="flex flex-col sm:flex-row gap-4 mb-6">
+            <input id="new-task-input" type="text" placeholder="Add a new item..." class="flex-grow p-3 rounded-xl bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors duration-200">
+            <div class="flex items-center gap-2">
+                <select id="priority-select" class="p-3 rounded-xl bg-gray-700 border border-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                </select>
+                <button id="add-task-btn" class="accent-button text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                    Add Item
+                </button>
+            </div>
+        </div>
+
+        <!-- Task List -->
+        <ul id="task-list" class="space-y-4"></ul>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap gap-3 mt-6">
+            <button id="delete-ticked-btn" class="flex-grow text-sm sm:flex-grow-0 bg-red-600 text-white font-semibold py-3 px-4 rounded-xl shadow-md hover:bg-red-700 transition-colors duration-300">
+                Delete Ticked
+            </button>
+            <button id="clear-all-btn" class="flex-grow text-sm sm:flex-grow-0 bg-gray-500 text-white font-semibold py-3 px-4 rounded-xl shadow-md hover:bg-gray-600 transition-colors duration-300">
+                Clear All
+            </button>
+        </div>
+        
+        <!-- Toggle Ticked Items Button -->
+        <div class="mt-6 flex justify-center">
+            <button id="toggle-ticked-btn" class="text-gray-400 hover:text-white transition-colors duration-200">
+                Hide Ticked Items
+            </button>
+        </div>
+    </div>
+
+    <!-- Custom Modal for Alerts (replacing alert()) -->
+    <div id="custom-alert-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-gray-800 text-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">Heads Up!</h3>
+                <button id="close-alert-btn" class="text-gray-400 hover:text-gray-200">&times;</button>
+            </div>
+            <p id="alert-message"></p>
+        </div>
+    </div>
+
+    <script>
+        // DOM element references
+        const newTaskInput = document.getElementById('new-task-input');
+        const addTaskBtn = document.getElementById('add-task-btn');
+        const prioritySelect = document.getElementById('priority-select');
+        const taskList = document.getElementById('task-list');
+        const deleteTickedBtn = document.getElementById('delete-ticked-btn');
+        const clearAllBtn = document.getElementById('clear-all-btn');
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const checklistCard = document.getElementById('checklist-card');
+        const resizeHandle = document.getElementById('resize-handle');
+        const toggleTickedBtn = document.getElementById('toggle-ticked-btn');
+        
+        // Modal references
+        const alertModal = document.getElementById('custom-alert-modal');
+        const alertMessage = document.getElementById('alert-message');
+        const closeAlertBtn = document.getElementById('close-alert-btn');
+
+        // State for hiding ticked items
+        let areTickedItemsVisible = true;
+
+        // Show custom alert modal
+        function showCustomAlert(message) {
+            alertMessage.textContent = message;
+            alertModal.classList.remove('hidden');
+        }
+
+        // Close custom alert modal
+        closeAlertBtn.addEventListener('click', () => {
+            alertModal.classList.add('hidden');
+        });
+
+        // Function to save tasks to local storage
+        function saveTasks() {
+            const tasks = [];
+            taskList.querySelectorAll('li').forEach(li => {
+                tasks.push({
+                    text: li.querySelector('.task-text').textContent,
+                    checked: li.querySelector('input[type="checkbox"]').checked,
+                    priority: li.getAttribute('data-priority')
+                });
+            });
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
+
+        // Function to sort tasks by priority (high, medium, low)
+        function sortTasks() {
+            const tasks = Array.from(taskList.querySelectorAll('li'));
+            const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3 };
+            
+            tasks.sort((a, b) => {
+                const priorityA = a.getAttribute('data-priority');
+                const priorityB = b.getAttribute('data-priority');
+                return priorityOrder[priorityA] - priorityOrder[priorityB];
+            });
+
+            // Re-append tasks to the list in the new order
+            tasks.forEach(task => taskList.appendChild(task));
+        }
+
+        // Function to load tasks from local storage
+        function loadTasks() {
+            const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+            tasks.forEach(task => {
+                createTaskElement(task.text, task.priority, task.checked);
+            });
+            sortTasks(); // Sort tasks after loading them
+            // Apply initial hide state if set
+            if (!areTickedItemsVisible) {
+                toggleTickedVisibility();
+            }
+        }
+        
+        // Load the saved theme preference on initial load
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'light') {
+                document.documentElement.classList.remove('dark');
+            } else {
+                document.documentElement.classList.add('dark');
+            }
+            updateThemeIcons(document.documentElement.classList.contains('dark'));
+        }
+
+        // Function to create a new task element
+        function createTaskElement(text, priority = 'medium', isChecked = false) {
+            const li = document.createElement('li');
+            li.className = `flex items-center gap-3 p-4 rounded-xl shadow-sm border border-gray-700 group transition-colors duration-200 ${isChecked ? 'task-complete' : ''}`;
+            li.setAttribute('data-priority', priority);
+            
+            li.innerHTML = `
+                <input type="checkbox" ${isChecked ? 'checked' : ''} class="custom-checkbox">
+                <span class="priority-flag priority-${priority}" title="Priority: ${priority}"></span>
+                <span class="task-text flex-grow">${text}</span>
+                <div class="flex items-center gap-2">
+                    <button class="edit-btn action-btn text-gray-400 hover:text-indigo-400">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM3 17a1 1 0 100-2h14a1 1 0 100 2H3z" />
+                        </svg>
+                    </button>
+                    <button class="delete-btn action-btn text-gray-400 hover:text-red-500">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            `;
+            taskList.appendChild(li);
+        }
+
+        // Function to toggle visibility of ticked items
+        function toggleTickedVisibility() {
+            areTickedItemsVisible = !areTickedItemsVisible;
+            const tickedItems = taskList.querySelectorAll('li.task-complete');
+            tickedItems.forEach(item => {
+                item.style.display = areTickedItemsVisible ? 'flex' : 'none';
+            });
+            toggleTickedBtn.textContent = areTickedItemsVisible ? 'Hide Ticked Items' : 'Show Ticked Items';
+        }
+
+        // Event listener to add a new task
+        function addTask() {
+            const taskText = newTaskInput.value.trim();
+            if (taskText !== "") {
+                const priority = prioritySelect.value;
+                createTaskElement(taskText, priority);
+                newTaskInput.value = '';
+                saveTasks();
+                sortTasks(); // Sort after adding a new task
+                // If ticked items are hidden, hide the new ticked item
+                if (!areTickedItemsVisible) {
+                    const latestTask = taskList.querySelector('li:last-child');
+                    if (latestTask.querySelector('input[type="checkbox"]').checked) {
+                        latestTask.style.display = 'none';
+                    }
+                }
+            } else {
+                showCustomAlert("Please enter a task before adding.");
+            }
+        }
+        
+        addTaskBtn.addEventListener('click', addTask);
+        newTaskInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addTask();
+            }
+        });
+        
+        toggleTickedBtn.addEventListener('click', toggleTickedVisibility);
+
+        // Event delegation for managing tasks (delete, tick, edit)
+        taskList.addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (!li) return;
+
+            if (e.target.closest('.delete-btn')) {
+                li.remove();
+                saveTasks();
+            } else if (e.target.closest('.edit-btn')) {
+                enterEditMode(li);
+            } else if (e.target.closest('.save-edit-btn')) {
+                saveEdit(li);
+            } else if (e.target.closest('.cancel-edit-btn')) {
+                cancelEdit(li);
+            }
+        });
+
+        function enterEditMode(li) {
+            const taskTextSpan = li.querySelector('.task-text');
+            const currentPriority = li.getAttribute('data-priority');
+            const originalText = taskTextSpan.textContent;
+            
+            // Store original values on the element
+            li.setAttribute('data-original-text', originalText);
+            li.setAttribute('data-original-priority', currentPriority);
+
+            // Replace text span with input field
+            taskTextSpan.innerHTML = `
+                <input type="text" value="${originalText}" class="flex-grow p-1 rounded-md bg-gray-600 border border-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+            `;
+
+            // Replace priority flag with select dropdown
+            const priorityFlag = li.querySelector('.priority-flag');
+            priorityFlag.outerHTML = `
+                <select class="edit-priority-select p-1 rounded-md bg-gray-600 border border-gray-500 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                    <option value="high" ${currentPriority === 'high' ? 'selected' : ''}>High</option>
+                    <option value="medium" ${currentPriority === 'medium' ? 'selected' : ''}>Medium</option>
+                    <option value="low" ${currentPriority === 'low' ? 'selected' : ''}>Low</option>
+                </select>
+            `;
+
+            // Change action buttons to Save and Cancel
+            const actionContainer = li.querySelector('.flex');
+            actionContainer.innerHTML = `
+                <button class="save-edit-btn action-btn text-gray-400 hover:text-green-400">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+                <button class="cancel-edit-btn action-btn text-gray-400 hover:text-red-500">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            `;
+            // Focus on the input field
+            li.querySelector('input[type="text"]').focus();
+        }
+
+        function saveEdit(li) {
+            const newText = li.querySelector('input[type="text"]').value.trim();
+            const newPriority = li.querySelector('.edit-priority-select').value;
+            
+            if (newText === "") {
+                showCustomAlert("Task cannot be empty. Please enter a value or cancel.");
+                return;
+            }
+
+            // Restore the element with new values
+            li.setAttribute('data-priority', newPriority);
+            li.querySelector('.task-text').textContent = newText;
+            li.querySelector('.task-text').innerHTML = `${newText}`;
+
+            // Restore priority flag and action buttons
+            const editPrioritySelect = li.querySelector('.edit-priority-select');
+            editPrioritySelect.outerHTML = `<span class="priority-flag priority-${newPriority}" title="Priority: ${newPriority}"></span>`;
+
+            const actionContainer = li.querySelector('.flex');
+            actionContainer.innerHTML = `
+                <button class="edit-btn action-btn text-gray-400 hover:text-indigo-400">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM3 17a1 1 0 100-2h14a1 1 0 100 2H3z" />
+                    </svg>
+                </button>
+                <button class="delete-btn action-btn text-gray-400 hover:text-red-500">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            `;
+            saveTasks();
+            sortTasks();
+        }
+
+        function cancelEdit(li) {
+            const originalText = li.getAttribute('data-original-text');
+            const originalPriority = li.getAttribute('data-original-priority');
+            
+            // Restore the element with original values
+            li.setAttribute('data-priority', originalPriority);
+            li.querySelector('.task-text').textContent = originalText;
+            
+            // Restore priority flag and action buttons
+            const editPrioritySelect = li.querySelector('.edit-priority-select');
+            editPrioritySelect.outerHTML = `<span class="priority-flag priority-${originalPriority}" title="Priority: ${originalPriority}"></span>`;
+
+            const actionContainer = li.querySelector('.flex');
+            actionContainer.innerHTML = `
+                <button class="edit-btn action-btn text-gray-400 hover:text-indigo-400">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM3 17a1 1 0 100-2h14a1 1 0 100 2H3z" />
+                    </svg>
+                </button>
+                <button class="delete-btn action-btn text-gray-400 hover:text-red-500">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            `;
+        }
+
+
+        taskList.addEventListener('change', (e) => {
+            if (e.target.closest('.custom-checkbox')) {
+                const li = e.target.closest('li');
+                if (e.target.checked) {
+                    li.classList.add('task-complete');
+                    if (!areTickedItemsVisible) {
+                        li.style.display = 'none';
+                    }
+                } else {
+                    li.classList.remove('task-complete');
+                    li.style.display = 'flex'; // Ensure it's visible again
+                }
+                saveTasks();
+            }
+        });
+
+        // Event listener for "Delete Ticked" button
+        deleteTickedBtn.addEventListener('click', () => {
+            taskList.querySelectorAll('li').forEach(li => {
+                const checkbox = li.querySelector('input[type="checkbox"]');
+                if (checkbox && checkbox.checked) {
+                    li.remove();
+                }
+            });
+            saveTasks();
+        });
+
+        // Event listener for "Clear All" button
+        clearAllBtn.addEventListener('click', () => {
+            taskList.innerHTML = '';
+            saveTasks();
+        });
+
+        // Theme toggle logic
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeIcons(isDark);
+        }
+
+        function updateThemeIcons(isDark) {
+            if (isDark) {
+                moonIcon.classList.remove('hidden');
+                sunIcon.classList.add('hidden');
+            } else {
+                moonIcon.classList.add('hidden');
+                sunIcon.classList.remove('hidden');
+            }
+        }
+
+        themeToggleBtn.addEventListener('click', toggleTheme);
+
+
+        // Resize functionality
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 0;
+        const minWidth = 250;
+        const maxWidth = () => window.innerWidth * 0.9;
+
+        function handleResizeStart(e) {
+            isResizing = true;
+            startX = e.clientX || e.touches[0].clientX;
+            startWidth = checklistCard.offsetWidth;
+            document.body.style.userSelect = 'none'; // Prevent text selection during drag
+            checklistCard.classList.remove('max-w-xl', 'w-full');
+        }
+
+        function handleResize(e) {
+            if (!isResizing) return;
+            const currentX = e.clientX || e.touches[0].clientX;
+            const newWidth = startWidth + (currentX - startX);
+            if (newWidth >= minWidth && newWidth <= maxWidth()) {
+                checklistCard.style.width = `${newWidth}px`;
+            }
+        }
+
+        function handleResizeEnd() {
+            isResizing = false;
+            document.body.style.userSelect = '';
+        }
+
+        // Attach mouse event listeners
+        resizeHandle.addEventListener('mousedown', handleResizeStart);
+        document.addEventListener('mousemove', handleResize);
+        document.addEventListener('mouseup', handleResizeEnd);
+        
+        // Attach touch event listeners
+        resizeHandle.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Prevents default touch behavior (e.g., scrolling)
+            handleResizeStart(e);
+        }, { passive: false });
+        document.addEventListener('touchmove', (e) => {
+            handleResize(e);
+        }, { passive: false });
+        document.addEventListener('touchend', handleResizeEnd);
+
+
+        // Initial loading of tasks and theme when the page loads
+        window.onload = function() {
+            loadTasks();
+            loadTheme();
+            // Set the initial width based on its rendered size
+            checklistCard.style.width = `${checklistCard.offsetWidth}px`;
+        };
+
+    </script>
+</body>
+</html>
+

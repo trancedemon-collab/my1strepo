@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Advanced Hourly Chime</title>
+    <style>
+        :root {
+            --background-color: #242424;
+            --text-color: #f6f6f6;
+            --secondary-text-color: #aaaaaa;
+            --button-background: #4a4a4a;
+            --button-hover: #5a5a5a;
+            --input-background: #333333;
+            --input-border: #555555;
+            --container-background: #2a2a2a;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            flex-direction: column;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: var(--container-background);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #clock {
+            font-size: 8em;
+            font-weight: 300;
+            letter-spacing: -2px;
+        }
+
+        #countdown {
+            font-size: 1.8em;
+            margin-top: 10px;
+            color: var(--secondary-text-color);
+        }
+
+        #message {
+            margin-top: 20px;
+            font-size: 1.5em;
+            color: var(--secondary-text-color);
+            text-align: center;
+            min-height: 1.5em;
+        }
+
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .controls select,
+        .controls input[type="number"] {
+            background-color: var(--input-background);
+            color: var(--text-color);
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 1em;
+            margin: 5px;
+            outline: none;
+        }
+
+        .controls input[type="number"] {
+            width: 50px;
+            -moz-appearance: textfield;
+        }
+        .controls input[type="number"]::-webkit-outer-spin-button,
+        .controls input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .controls label {
+            font-size: 0.9em;
+            color: var(--secondary-text-color);
+            margin-top: 10px;
+        }
+
+        .controls button {
+            margin-top: 15px;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--button-background);
+            color: var(--text-color);
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        .controls button:hover {
+            background-color: var(--button-hover);
+        }
+
+        .custom-interval-group {
+            display: flex;
+            align-items: center;
+        }
+
+        .custom-interval-group .input-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="clock"></div>
+        <div id="countdown"></div>
+        <div id="message">Loading...</div>
+
+        <div class="controls">
+            <label for="interval-select">Chime Interval:</label>
+            <select id="interval-select">
+                <option value="3600">Hourly</option>
+                <option value="1800">Half-Hourly</option>
+                <option value="900">Quarterly</option>
+                <option value="custom">Custom</option>
+            </select>
+
+            <div id="custom-interval-fields" style="display:none;">
+                <label for="custom-hours">Custom Interval (HH:MM:SS):</label>
+                <div class="custom-interval-group">
+                    <div class="input-container">
+                        <input type="number" id="custom-hours" min="0" value="0">
+                        <span>hrs</span>
+                    </div>
+                    <div class="input-container">
+                        <input type="number" id="custom-minutes" min="0" max="59" value="0">
+                        <span>min</span>
+                    </div>
+                    <div class="input-container">
+                        <input type="number" id="custom-seconds" min="0" max="59" value="0">
+                        <span>sec</span>
+                    </div>
+                </div>
+                <button id="set-button">Set Custom Chime</button>
+            </div>
+
+            <button id="test-button">Test Chime</button>
+        </div>
+    </div>
+
+    <script>
+        const chime = new Audio('chime.mp3');
+        const clockDiv = document.getElementById('clock');
+        const countdownDiv = document.getElementById('countdown');
+        const messageDiv = document.getElementById('message');
+        const intervalSelect = document.getElementById('interval-select');
+        const customFields = document.getElementById('custom-interval-fields');
+        const customHoursInput = document.getElementById('custom-hours');
+        const customMinutesInput = document.getElementById('custom-minutes');
+        const customSecondsInput = document.getElementById('custom-seconds');
+        const setButton = document.getElementById('set-button');
+        const testButton = document.getElementById('test-button');
+
+        let chimeIntervalMs = 3600 * 1000;
+        let nextChimeTime = null;
+        let timerInterval = null;
+        let countdownInterval = null;
+
+        function updateClockAndCountdown() {
+            const now = new Date();
+            let hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+            clockDiv.innerText = formattedTime;
+
+            if (nextChimeTime) {
+                const timeRemaining = nextChimeTime - now.getTime();
+                if (timeRemaining <= 0) {
+                    countdownDiv.innerText = `Next chime in: 0m 0s`;
+                    return;
+                }
+                const totalSeconds = Math.floor(timeRemaining / 1000);
+                const countdownMinutes = Math.floor(totalSeconds / 60);
+                const countdownSeconds = totalSeconds % 60;
+                const countdownText = `Next chime in: ${countdownMinutes}m ${countdownSeconds}s`;
+                countdownDiv.innerText = countdownText;
+            }
+        }
+
+        function chimeAndScheduleNext() {
+            chime.play();
+            messageDiv.innerText = "Chime!";
+            setTimeout(() => { messageDiv.innerText = "Waiting for the next chime..."; }, 3000);
+
+            nextChimeTime = new Date().getTime() + chimeIntervalMs;
+
+            clearTimeout(timerInterval);
+            timerInterval = setTimeout(chimeAndScheduleNext, nextChimeTime - new Date().getTime());
+        }
+
+        function setChimeInterval(isCustom = false) {
+            clearTimeout(timerInterval);
+            clearInterval(countdownInterval);
+
+            if (isCustom) {
+                const hours = parseInt(customHoursInput.value, 10) || 0;
+                const minutes = parseInt(customMinutesInput.value, 10) || 0;
+                const seconds = parseInt(customSecondsInput.value, 10) || 0;
+                chimeIntervalMs = (hours * 3600 + minutes * 60 + seconds) * 1000;
+                if (chimeIntervalMs < 1000) {
+                    chimeIntervalMs = 1000;
+                    alert("The minimum interval is 1 second.");
+                }
+                nextChimeTime = new Date().getTime() + chimeIntervalMs;
+
+            } else { // Handle presets (hourly, half-hourly, quarterly)
+                const now = new Date();
+                const minutes = now.getMinutes();
+                const seconds = now.getSeconds();
+                const totalSecondsPassed = minutes * 60 + seconds;
+
+                const presetValue = parseInt(intervalSelect.value, 10);
+                chimeIntervalMs = presetValue * 1000;
+
+                let secondsUntilNextMark = 0;
+                if (presetValue === 3600) { // Hourly
+                    secondsUntilNextMark = 3600 - totalSecondsPassed;
+                } else if (presetValue === 1800) { // Half-Hourly
+                    const currentHalfHour = Math.floor(totalSecondsPassed / 1800);
+                    secondsUntilNextMark = (currentHalfHour + 1) * 1800 - totalSecondsPassed;
+                } else if (presetValue === 900) { // Quarterly
+                    const currentQuarter = Math.floor(totalSecondsPassed / 900);
+                    secondsUntilNextMark = (currentQuarter + 1) * 900 - totalSecondsPassed;
+                }
+                nextChimeTime = now.getTime() + secondsUntilNextMark * 1000;
+            }
+
+            timerInterval = setTimeout(chimeAndScheduleNext, nextChimeTime - new Date().getTime());
+
+            countdownInterval = setInterval(updateClockAndCountdown, 1000);
+
+            let newIntervalText = isCustom ? "custom interval" : intervalSelect.options[intervalSelect.selectedIndex].text.toLowerCase();
+            messageDiv.innerText = `Chime set to ${newIntervalText}.`;
+        }
+
+        // Event listeners
+        intervalSelect.addEventListener('change', () => {
+            if (intervalSelect.value === 'custom') {
+                customFields.style.display = 'flex';
+            } else {
+                customFields.style.display = 'none';
+                setChimeInterval();
+            }
+        });
+
+        setButton.addEventListener('click', () => {
+            setChimeInterval(true);
+        });
+
+        testButton.addEventListener('click', () => {
+            chime.play();
+            messageDiv.innerText = "Test chime played!";
+            setTimeout(() => {
+                messageDiv.innerText = `Chime set to ${intervalSelect.options[intervalSelect.selectedIndex].text.toLowerCase()}.`;
+            }, 3000);
+        });
+
+        // Initial setup
+        setChimeInterval();
+    </script>
+</body>
+</html>
