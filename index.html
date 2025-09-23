@@ -2,292 +2,43 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Checklist Tool</title>
+  <title>Tool Dashboard</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 40px; }
-    #input-area { margin-bottom: 16px; }
-    #action-buttons { margin-bottom: 16px; }
-    hr { margin: 20px 0; }
-    .item, .completed-item { display: flex; align-items: center; margin-bottom: 8px; }
-    .item input[type="text"], .completed-item input[type="text"] { margin-right: 8px; }
-    .item .edit, .item .delete, .item .priority { margin-left: 8px; }
-    .completed-item .edit, .completed-item .delete, .completed-item .priority { margin-left: 8px; }
-    .priority { color: #d2691e; font-weight: bold; }
-    .high-priority { font-weight: bold; color: #c00; }
-    #completed-section { margin-top: 40px; }
-    #completed-section h3 { margin-bottom: 8px; }
+    body { font-family: Arial, sans-serif; margin: 40px; background: #fafafa; }
+    .tool-container {
+      border: 2px solid #888;
+      border-radius: 10px;
+      background: #fff;
+      margin-bottom: 32px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      width: 90%;
+      max-width: 900px;
+    }
+    .tool-header {
+      font-size: 1.3em;
+      margin-bottom: 12px;
+      font-weight: bold;
+      color: #3a3a3a;
+    }
+    .iframe-box {
+      border: 1px solid #bbb;
+      width: 100%;
+      min-height: 650px;
+      border-radius: 6px;
+      background: #f6f6f6;
+      margin-top: 5px;
+    }
   </style>
 </head>
 <body>
-  <div id="input-area">
-    <input type="text" id="new-item-text" placeholder="Add new item">
-    <button id="add-btn">Add</button>
+  <h1>Tool Dashboard</h1>
+  
+  <div class="tool-container">
+    <div class="tool-header">Checklist Tool</div>
+    <iframe class="iframe-box" src="./checklist.html" title="Checklist Tool"></iframe>
   </div>
-  <div id="action-buttons">
-    <button id="delete-all-btn">Delete All</button>
-    <button id="delete-checked-btn">Delete Checked Items</button>
-  </div>
-  <hr>
-  <div id="checklist"></div>
-  <div id="completed-section" style="display:none;">
-    <h3>Completed</h3>
-    <div id="completed-list"></div>
-  </div>
-  <script>
-    const STORAGE_KEY = 'checklist_items_v2';
-
-    function getItems() {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    }
-
-    function saveItems(items) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    }
-
-    function renderChecklist() {
-      const items = getItems();
-      // Sort: high-priority first, then others, only unchecked
-      const activeItems = items
-        .filter(item => !item.checked)
-        .sort((a, b) => (b.highPriority ? 1 : 0) - (a.highPriority ? 1 : 0));
-      const completedItems = items.filter(item => item.checked);
-
-      // Checklist (active)
-      const list = document.getElementById('checklist');
-      list.innerHTML = '';
-      activeItems.forEach((item, idx) => {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'item' + (item.highPriority ? ' high-priority' : '');
-
-        // Checkbox
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = false;
-        checkbox.onchange = () => {
-          // Move to completed
-          const allItems = getItems();
-          const realIdx = allItems.findIndex(i => i.text === item.text && !i.checked);
-          if (realIdx !== -1) {
-            allItems[realIdx].checked = true;
-            saveItems(allItems);
-            renderChecklist();
-          }
-        };
-        itemDiv.appendChild(checkbox);
-
-        // Item text or editable input
-        if (item.editing) {
-          const editInput = document.createElement('input');
-          editInput.type = 'text';
-          editInput.value = item.text;
-          itemDiv.appendChild(editInput);
-
-          // Save button
-          const saveBtn = document.createElement('button');
-          saveBtn.textContent = 'Save';
-          saveBtn.className = 'edit';
-          saveBtn.onclick = () => {
-            const allItems = getItems();
-            const realIdx = allItems.findIndex(i => i.text === item.text && !i.checked);
-            if (realIdx !== -1) {
-              allItems[realIdx].text = editInput.value.trim() || allItems[realIdx].text;
-              allItems[realIdx].editing = false;
-              saveItems(allItems);
-              renderChecklist();
-            }
-          };
-          itemDiv.appendChild(saveBtn);
-
-          // Cancel button
-          const cancelBtn = document.createElement('button');
-          cancelBtn.textContent = 'Cancel';
-          cancelBtn.className = 'edit';
-          cancelBtn.onclick = () => {
-            const allItems = getItems();
-            const realIdx = allItems.findIndex(i => i.text === item.text && !i.checked);
-            if (realIdx !== -1) {
-              allItems[realIdx].editing = false;
-              saveItems(allItems);
-              renderChecklist();
-            }
-          };
-          itemDiv.appendChild(cancelBtn);
-        } else {
-          const textSpan = document.createElement('span');
-          textSpan.textContent = item.text;
-          textSpan.style.marginLeft = '10px';
-          itemDiv.appendChild(textSpan);
-
-          // High Priority Button
-          const priorityBtn = document.createElement('button');
-          priorityBtn.textContent = item.highPriority ? 'Unmark High Priority' : 'High Priority';
-          priorityBtn.className = 'priority';
-          priorityBtn.onclick = () => {
-            const allItems = getItems();
-            const realIdx = allItems.findIndex(i => i.text === item.text && !i.checked);
-            if (realIdx !== -1) {
-              allItems[realIdx].highPriority = !allItems[realIdx].highPriority;
-              saveItems(allItems);
-              renderChecklist();
-            }
-          };
-          itemDiv.appendChild(priorityBtn);
-
-          // Edit button
-          const editBtn = document.createElement('button');
-          editBtn.textContent = 'Edit';
-          editBtn.className = 'edit';
-          editBtn.onclick = () => {
-            const allItems = getItems();
-            const realIdx = allItems.findIndex(i => i.text === item.text && !i.checked);
-            if (realIdx !== -1) {
-              allItems[realIdx].editing = true;
-              saveItems(allItems);
-              renderChecklist();
-            }
-          };
-          itemDiv.appendChild(editBtn);
-        }
-
-        // Delete button
-        const delBtn = document.createElement('button');
-        delBtn.textContent = 'Delete';
-        delBtn.className = 'delete';
-        delBtn.onclick = () => {
-          const allItems = getItems();
-          const realIdx = allItems.findIndex(i => i.text === item.text && !i.checked);
-          if (realIdx !== -1) {
-            allItems.splice(realIdx, 1);
-            saveItems(allItems);
-            renderChecklist();
-          }
-        };
-        itemDiv.appendChild(delBtn);
-
-        list.appendChild(itemDiv);
-      });
-
-      // Completed section
-      const completedSection = document.getElementById('completed-section');
-      const completedList = document.getElementById('completed-list');
-      completedList.innerHTML = '';
-      if (completedItems.length > 0) {
-        completedSection.style.display = '';
-        completedItems.forEach((item, idx) => {
-          const itemDiv = document.createElement('div');
-          itemDiv.className = 'completed-item';
-
-          // Checkbox (checked)
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.checked = true;
-          checkbox.onchange = () => {
-            // Move back to checklist
-            const allItems = getItems();
-            const realIdx = allItems.findIndex(i => i.text === item.text && i.checked);
-            if (realIdx !== -1) {
-              allItems[realIdx].checked = false;
-              saveItems(allItems);
-              renderChecklist();
-            }
-          };
-          itemDiv.appendChild(checkbox);
-
-          // Item text (bold if high priority)
-          const textSpan = document.createElement('span');
-          textSpan.textContent = item.text;
-          textSpan.style.marginLeft = '10px';
-          if (item.highPriority) {
-            textSpan.className = 'high-priority';
-          }
-          itemDiv.appendChild(textSpan);
-
-          // High Priority Button
-          const priorityBtn = document.createElement('button');
-          priorityBtn.textContent = item.highPriority ? 'Unmark High Priority' : 'High Priority';
-          priorityBtn.className = 'priority';
-          priorityBtn.onclick = () => {
-            const allItems = getItems();
-            const realIdx = allItems.findIndex(i => i.text === item.text && i.checked);
-            if (realIdx !== -1) {
-              allItems[realIdx].highPriority = !allItems[realIdx].highPriority;
-              saveItems(allItems);
-              renderChecklist();
-            }
-          };
-          itemDiv.appendChild(priorityBtn);
-
-          // Edit button
-          const editBtn = document.createElement('button');
-          editBtn.textContent = 'Edit';
-          editBtn.className = 'edit';
-          editBtn.onclick = () => {
-            const allItems = getItems();
-            const realIdx = allItems.findIndex(i => i.text === item.text && i.checked);
-            if (realIdx !== -1) {
-              allItems[realIdx].editing = true;
-              saveItems(allItems);
-              renderChecklist();
-            }
-          };
-          itemDiv.appendChild(editBtn);
-
-          // Delete button
-          const delBtn = document.createElement('button');
-          delBtn.textContent = 'Delete';
-          delBtn.className = 'delete';
-          delBtn.onclick = () => {
-            const allItems = getItems();
-            const realIdx = allItems.findIndex(i => i.text === item.text && i.checked);
-            if (realIdx !== -1) {
-              allItems.splice(realIdx, 1);
-              saveItems(allItems);
-              renderChecklist();
-            }
-          };
-          itemDiv.appendChild(delBtn);
-
-          completedList.appendChild(itemDiv);
-        });
-      } else {
-        completedSection.style.display = 'none';
-      }
-    }
-
-    // Add new item
-    document.getElementById('add-btn').onclick = () => {
-      const input = document.getElementById('new-item-text');
-      const text = input.value.trim();
-      if (text) {
-        const items = getItems();
-        items.push({ text, checked: false, highPriority: false });
-        saveItems(items);
-        input.value = '';
-        renderChecklist();
-      }
-    };
-
-    // Enter key also adds
-    document.getElementById('new-item-text').addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('add-btn').click();
-    });
-
-    // Delete all items
-    document.getElementById('delete-all-btn').onclick = () => {
-      saveItems([]);
-      renderChecklist();
-    };
-
-    // Delete checked items
-    document.getElementById('delete-checked-btn').onclick = () => {
-      const items = getItems().filter(item => !item.checked);
-      saveItems(items);
-      renderChecklist();
-    };
-
-    // Initial render
-    renderChecklist();
-  </script>
+  
+  <!-- To add more tools, copy the block above and update the src/title -->
 </body>
 </html>
